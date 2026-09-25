@@ -1,0 +1,6 @@
+torch>=2.2
+torch-geometric>=2.5
+torch-geometric-temporal==0.54.0
+scikit-learn>=1.4
+scipy>=1.11
+numpy>=1.26

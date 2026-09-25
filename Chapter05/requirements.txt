@@ -1,0 +1,6 @@
+torch>=2.2
+torch-geometric>=2.5
+scikit-learn>=1.4
+pandas>=2.0
+matplotlib>=3.8
+numpy>=1.26

@@ -1,0 +1,8 @@
+--find-links https://data.pyg.org/whl/torch-2.5.1+cpu.html
+torch>=2.2
+torch-geometric>=2.5
+pyg-lib
+scikit-learn>=1.4
+networkx>=3.4
+matplotlib>=3.8
+numpy>=1.26

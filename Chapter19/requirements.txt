@@ -1,0 +1,10 @@
+torch>=2.2
+torch-geometric>=2.7
+transformers>=4.40
+datasets>=2.20
+sentencepiece>=0.2
+accelerate>=0.30
+pcst_fast>=1.0.10
+rank-bm25>=0.2.2
+matplotlib>=3.8
+numpy>=1.26
