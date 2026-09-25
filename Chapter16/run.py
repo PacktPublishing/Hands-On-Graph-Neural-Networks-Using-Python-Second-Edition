@@ -1,5 +1,5 @@
 """
-Chapter 15 – Forecasting Traffic Using A3T-GCN
+Chapter 16 – Forecasting Traffic Using A3T-GCN
 Hands-On Graph Neural Networks Using Python (2nd Edition)
 
 Requirements:

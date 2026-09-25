@@ -4,8 +4,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
-NODE_BLUE = '#3a82d6'
-EDGE_BLUE = '#5a9bd5'
+# Grayscale palette shared with the other chapters: G0 darkest, G6 lightest.
+G1 = '#333333'; G3 = '#777777'; G6 = '#DDDDDD'
+NODE_FILL = G1
+EDGE_LINE = G3
 R = 0.30
 
 fig, ax = plt.subplots(figsize=(7.2, 3.0), dpi=300)
@@ -22,10 +24,10 @@ R_edges = [(1,2),(1,3),(2,3),(1,4)]
 def draw(pos, edges):
     for a, b in edges:
         (x1,y1), (x2,y2) = pos[a], pos[b]
-        ax.plot([x1,x2], [y1,y2], color=EDGE_BLUE, lw=2.2, zorder=1,
+        ax.plot([x1,x2], [y1,y2], color=EDGE_LINE, lw=2.2, zorder=1,
                 solid_capstyle='round')
     for n, (x,y) in pos.items():
-        ax.add_patch(Circle((x,y), R, facecolor=NODE_BLUE, edgecolor='none', zorder=2))
+        ax.add_patch(Circle((x,y), R, facecolor=NODE_FILL, edgecolor='none', zorder=2))
         ax.text(x, y, str(n), color='white', ha='center', va='center',
                 fontsize=12, fontweight='bold', zorder=3)
 
@@ -33,7 +35,7 @@ draw(L, L_edges)
 draw(Rg, R_edges)
 
 # subtle vertical divider like the original
-ax.plot([5.8,5.8], [0.3,4.7], color='#cfd8e3', lw=1.0, zorder=0)
+ax.plot([5.8,5.8], [0.3,4.7], color=G6, lw=1.0, zorder=0)
 
 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 plt.savefig(os.path.join(os.path.dirname(os.path.abspath(__file__)),

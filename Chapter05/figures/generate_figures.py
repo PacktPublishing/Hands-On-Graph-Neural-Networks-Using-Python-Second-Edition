@@ -21,21 +21,29 @@ os.makedirs(OUT, exist_ok=True)
 
 FONT   = "DejaVu Sans"
 BG     = "white"
-BLUE   = "#2E75B6"
-LBLUE  = "#BDD7EE"
-ORANGE = "#C55A11"
-GRAY   = "#595959"
-LGRAY  = "#EDEDED"
-BLACK  = "#1A1A1A"
-RED    = "#C0392B"
-GREEN  = "#1E8449"
-PURPLE = "#6C3483"
-TEAL   = "#117A65"
-GOLD   = "#B7950B"
-LORNG  = "#FAD7A0"
 
-PALETTE7 = [BLUE, RED, GREEN, ORANGE, PURPLE, TEAL, GOLD]
-PALETTE4 = [BLUE, RED, GREEN, ORANGE]
+# Shared grayscale ramp used from Chapter 6 onwards for non-categorical marks
+# (fills, headers, arrows): G0 is almost black, G6 almost white.
+G0, G1, G2, G3 = "#111111", "#333333", "#555555", "#777777"
+G4, G5, G6     = "#999999", "#BBBBBB", "#DDDDDD"
+
+GRAY_EDGE = "#595959"   # graph edges, connector arrows and caption text
+LGRAY     = "#EDEDED"   # legend borders and "…" filler cells
+BLACK     = "#1A1A1A"   # titles
+
+# Categorical tones for the graph figures: evenly spaced lightness steps so the
+# classes stay separable when the page is printed in black and white.
+GRAY7 = ["#1A1A1A", "#404040", "#666666", "#8C8C8C", "#ABABAB", "#C8C8C8", "#E0E0E0"]
+GRAY4 = ["#1A1A1A", "#606060", "#A0A0A0", "#D0D0D0"]
+
+# Table accents: the highlighted columns must differ from LGRAY filler cells.
+HDR_FILL   = G1   # header row, dark enough for white bold text
+HL_STRONG  = G5   # primary highlighted column (label / GNN accuracy)
+HL_SOFT    = G6   # secondary highlighted column (improvement)
+
+# Architecture boxes, lightening with depth; all still carry white text.
+BOX_IN, BOX_HIDDEN, BOX_OUT = G0, G2, G3
+ADJ = G0          # adjacency-matrix arrows, near-black against GRAY_EDGE flow
 
 def save(fig, name, dpi=200):
     fig.savefig(f"{OUT}/{name}", dpi=dpi, bbox_inches='tight',
@@ -85,15 +93,15 @@ for c, nodes in enumerate(class_nodes):
         pos[n] = (cx + 0.9*x, cy + 0.9*y)
 
 deg  = dict(G.degree())
-nc   = [PALETTE7[node_cls[n]] for n in G.nodes()]
+nc   = [GRAY7[node_cls[n]] for n in G.nodes()]
 ns   = [20 + deg[n]*8 for n in G.nodes()]
 
 fig, ax = plt.subplots(figsize=(10, 8))
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.18, edge_color=GRAY, width=0.7)
+nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.18, edge_color=GRAY_EDGE, width=0.7)
 nx.draw_networkx_nodes(G, pos, ax=ax, node_color=nc, node_size=ns,
                        edgecolors='white', linewidths=0.5)
-handles = [mpatches.Patch(color=PALETTE7[i], label=class_names[i])
+handles = [mpatches.Patch(color=GRAY7[i], label=class_names[i])
            for i in range(n_classes)]
 ax.legend(handles=handles, loc='lower right', fontsize=9,
           framealpha=0.95, edgecolor=LGRAY,
@@ -139,15 +147,15 @@ for c1 in range(4):
 
 pos2 = nx.spring_layout(G2, seed=7, k=0.55)
 deg2 = dict(G2.degree())
-nc2  = [PALETTE4[fb_cls[n]] for n in G2.nodes()]
+nc2  = [GRAY4[fb_cls[n]] for n in G2.nodes()]
 ns2  = [30 + deg2[n]*12 for n in G2.nodes()]
 
 fig, ax = plt.subplots(figsize=(10, 8))
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-nx.draw_networkx_edges(G2, pos2, ax=ax, alpha=0.15, edge_color=GRAY, width=0.7)
+nx.draw_networkx_edges(G2, pos2, ax=ax, alpha=0.15, edge_color=GRAY_EDGE, width=0.7)
 nx.draw_networkx_nodes(G2, pos2, ax=ax, node_color=nc2, node_size=ns2,
                        edgecolors='white', linewidths=0.5)
-handles2 = [mpatches.Patch(color=PALETTE4[i], label=fb_class_names[i])
+handles2 = [mpatches.Patch(color=GRAY4[i], label=fb_class_names[i])
             for i in range(4)]
 ax.legend(handles=handles2, loc='lower right', fontsize=10,
           framealpha=0.95, edgecolor=LGRAY,
@@ -182,7 +190,7 @@ for ri, row in enumerate(disp_data):
         if ri == 5 or col == '…':
             row_c.append(LGRAY)
         elif col == 'label':
-            row_c.append(LBLUE)
+            row_c.append(HL_STRONG)
         else:
             row_c.append('white')
     cell_colors.append(row_c)
@@ -196,12 +204,12 @@ tbl.auto_set_font_size(False)
 tbl.set_fontsize(11)
 tbl.scale(1.0, 1.8)
 for ci in range(len(disp_cols)):
-    tbl[0, ci].set_facecolor(BLUE)
+    tbl[0, ci].set_facecolor(HDR_FILL)
     tbl[0, ci].set_text_props(color='white', fontweight='bold')
 ax.set_title(
     "Tabular representation of the Cora dataset  "
     "(5 of 2,708 nodes; 7 of 1,433 features shown; label column highlighted)",
-    fontsize=10, color=GRAY, fontstyle='italic', fontfamily=FONT, pad=10)
+    fontsize=10, color=GRAY_EDGE, fontstyle='italic', fontfamily=FONT, pad=10)
 fig.tight_layout()
 save(fig, "fig5_3_tabular.png")
 
@@ -234,45 +242,45 @@ def draw_arch(ax, title, layers, show_adj=False):
                     fontsize=9, color='white', fontweight='bold',
                     fontfamily=FONT, zorder=4)
         ax.text(x, y0-0.07, layer.get('sub',''), ha='center',
-                fontsize=8, color=GRAY, fontfamily=FONT)
+                fontsize=8, color=GRAY_EDGE, fontfamily=FONT)
         if i < n-1:
             ax.annotate("", xy=(xs[i+1]-0.10, 0.5), xytext=(x+0.10, 0.5),
-                        arrowprops=dict(arrowstyle="-|>", color=GRAY,
+                        arrowprops=dict(arrowstyle="-|>", color=GRAY_EDGE,
                                         lw=1.5, mutation_scale=15), zorder=2)
     if show_adj:
         for j, xi in enumerate(xs[1:], 1):
             ax.annotate("",
                 xy=(xi-0.10, 0.22), xytext=(xs[0]+0.10, 0.22),
-                arrowprops=dict(arrowstyle="-|>", color=RED, lw=1.4,
+                arrowprops=dict(arrowstyle="-|>", color=ADJ, lw=1.4,
                                 mutation_scale=12,
                                 connectionstyle=f"arc3,rad={-0.25-0.1*j}"),
                 zorder=2)
         ax.text(0.50, 0.08, "Adjacency matrix Ã  (topology at every layer)",
-                ha='center', fontsize=8.5, color=RED,
+                ha='center', fontsize=8.5, color=ADJ,
                 fontfamily=FONT, fontstyle='italic')
 
 draw_arch(axes[0], "MLP  (topology-agnostic)", [
-    {'label':'Node\nfeatures\nx',  'h':0.56, 'color':BLUE,
+    {'label':'Node\nfeatures\nx',  'h':0.56, 'color':BOX_IN,
      'sub':'Input  (1,433 dims)'},
-    {'label':'Linear\n+ ReLU',     'h':0.36, 'color':ORANGE,
+    {'label':'Linear\n+ ReLU',     'h':0.36, 'color':BOX_HIDDEN,
      'sub':'Hidden  (16 dims)'},
-    {'label':'Linear\n+ Softmax',  'h':0.28, 'color':GREEN,
+    {'label':'Linear\n+ Softmax',  'h':0.28, 'color':BOX_OUT,
      'sub':'Output  (7 classes)'},
 ], show_adj=False)
 axes[0].text(0.50, 0.93, "H = σ( X · W )",
-             ha='center', fontsize=11, color=GRAY,
+             ha='center', fontsize=11, color=GRAY_EDGE,
              fontfamily=FONT, fontstyle='italic')
 
 draw_arch(axes[1], "Vanilla GNN  (topology-aware)", [
-    {'label':'Node\nfeatures\nx',  'h':0.56, 'color':BLUE,
+    {'label':'Node\nfeatures\nx',  'h':0.56, 'color':BOX_IN,
      'sub':'Input  (1,433 dims)'},
-    {'label':'Graph\nlayer 1',     'h':0.36, 'color':ORANGE,
+    {'label':'Graph\nlayer 1',     'h':0.36, 'color':BOX_HIDDEN,
      'sub':'Ã · X · W₁  (16 dims)'},
-    {'label':'Graph\nlayer 2',     'h':0.28, 'color':GREEN,
+    {'label':'Graph\nlayer 2',     'h':0.28, 'color':BOX_OUT,
      'sub':'Ã · H · W₂  (7 classes)'},
 ], show_adj=True)
 axes[1].text(0.50, 0.93, "H = σ( Ã · X · W )",
-             ha='center', fontsize=11, color=GRAY,
+             ha='center', fontsize=11, color=GRAY_EDGE,
              fontfamily=FONT, fontstyle='italic')
 
 fig.tight_layout(pad=2.0)
@@ -288,8 +296,8 @@ data_rows = [
 ]
 col_labels = ["Dataset", "MLP accuracy", "Vanilla GNN accuracy", "Improvement"]
 row_colors = [
-    ['white', 'white', LBLUE, LORNG],
-    ['white', 'white', LBLUE, LORNG],
+    ['white', 'white', HL_STRONG, HL_SOFT],
+    ['white', 'white', HL_STRONG, HL_SOFT],
 ]
 
 fig, ax = plt.subplots(figsize=(9, 2.8))
@@ -300,12 +308,12 @@ tbl.auto_set_font_size(False)
 tbl.set_fontsize(12)
 tbl.scale(1, 2.2)
 for ci in range(len(col_labels)):
-    tbl[0, ci].set_facecolor(BLUE)
+    tbl[0, ci].set_facecolor(HDR_FILL)
     tbl[0, ci].set_text_props(color='white', fontweight='bold')
 ax.set_title(
     "Mean test accuracy over 20 runs  —  MLP vs Vanilla GNN\n"
     "(run chapter5.py locally to reproduce exact values)",
-    fontsize=10, color=GRAY, fontstyle='italic', fontfamily=FONT, pad=10)
+    fontsize=10, color=GRAY_EDGE, fontstyle='italic', fontfamily=FONT, pad=10)
 fig.tight_layout()
 save(fig, "fig5_5_results.png")
 
