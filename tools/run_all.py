@@ -36,13 +36,14 @@ def chapters(only):
     return out
 
 
-def script_for(chapter_dir, figures):
+def scripts_for(chapter_dir, figures):
+    """Every script to run for a chapter, as paths relative to it."""
     if figures:
-        for cand in ("figures/generate_figures.py", "generate_figures.py"):
-            if (chapter_dir / cand).exists():
-                return cand
-        return None
-    return "run.py" if (chapter_dir / "run.py").exists() else None
+        # Chapters 04 and 05 ship a grayscale and a heatmap variant beside the
+        # main script; all of them produce figures used in the book.
+        found = sorted(chapter_dir.glob("figures/generate_figures*.py"))
+        return [str(p.relative_to(chapter_dir)) for p in found]
+    return ["run.py"] if (chapter_dir / "run.py").exists() else []
 
 
 def ssl_env():
@@ -62,7 +63,8 @@ def ssl_env():
 
 
 def run_one(num, chapter_dir, script, timeout):
-    log_path = LOG_DIR / f"chapter{num}{'_figures' if 'generate' in script else ''}.log"
+    tag = "_" + Path(script).stem if "generate" in script else ""
+    log_path = LOG_DIR / f"chapter{num}{tag}.log"
     started = time.time()
     with open(log_path, "w") as log:
         try:
@@ -101,8 +103,8 @@ def main():
     LOG_DIR.mkdir(exist_ok=True)
     results = []
     for num, d in chapters(args.only):
-        script = script_for(d, args.figures)
-        if script is None:
+        scripts = scripts_for(d, args.figures)
+        if not scripts:
             results.append((num, "SKIP no script", 0.0, ""))
             print(f"Chapter{num}  SKIP   (nessuno script)", flush=True)
             continue
@@ -111,13 +113,15 @@ def main():
             print(f"Chapter{num}  SKIP   ({NEEDS_SERVICE[num]})", flush=True)
             continue
 
-        print(f"Chapter{num}  ...    {script}", end="", flush=True)
-        status, secs, log_path = run_one(num, d, script, args.timeout)
-        detail = tail_error(log_path) if status != "OK" else ""
-        results.append((num, status, secs, detail))
-        print(f"\rChapter{num}  {status:<14} {secs:6.1f}s  {script}", flush=True)
-        if detail:
-            print(f"            {detail[:160]}", flush=True)
+        for script in scripts:
+            label = num if len(scripts) == 1 else f"{num} {Path(script).stem}"
+            print(f"Chapter{label}  ...", end="", flush=True)
+            status, secs, log_path = run_one(num, d, script, args.timeout)
+            detail = tail_error(log_path) if status != "OK" else ""
+            results.append((label, status, secs, detail))
+            print(f"\rChapter{label}  {status:<14} {secs:6.1f}s  {script}", flush=True)
+            if detail:
+                print(f"            {detail[:160]}", flush=True)
 
     print("\n=== RIEPILOGO ===")
     width = max(len(s) for _, s, _, _ in results) if results else 4
