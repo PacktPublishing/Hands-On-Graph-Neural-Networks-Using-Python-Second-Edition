@@ -18,7 +18,7 @@ import os, random
 
 random.seed(0); np.random.seed(0); torch.manual_seed(0)
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures11")
+OUT = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(OUT, exist_ok=True)
 
 FONT = "DejaVu Sans"

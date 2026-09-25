@@ -1,8 +1,11 @@
+import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import numpy as np
+
+OUT = os.path.dirname(os.path.abspath(__file__))
 
 FONT="DejaVu Sans"; BG="white"
 # Grayscale palette G0..G6
@@ -57,6 +60,6 @@ draw_panel(axes[1], "Symmetric normalisation",
            r"$\dfrac{1}{\sqrt{d_i\,d_j}}=\dfrac{1}{\sqrt{12}}\approx0.29$", 3.4, False)
 
 fig.tight_layout()
-fig.savefig('/mnt/user-data/outputs/fig_row_vs_symmetric_norm_gray.png', dpi=200,
+fig.savefig(os.path.join(OUT, "fig_row_vs_symmetric_norm_gray.png"), dpi=200,
             bbox_inches='tight', facecolor=BG)
 print("saved")

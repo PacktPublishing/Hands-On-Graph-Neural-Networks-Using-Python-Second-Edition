@@ -26,7 +26,7 @@ VGAE_AP  = "0.8799"
 SEAL_AUC = "0.8744"
 SEAL_AP  = "0.9013"
 
-OUT  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures12")
+OUT  = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(OUT, exist_ok=True)
 
 FONT = "DejaVu Sans"
