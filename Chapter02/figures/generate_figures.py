@@ -1,3 +1,4 @@
+import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -35,5 +36,6 @@ draw(Rg, R_edges)
 ax.plot([5.8,5.8], [0.3,4.7], color='#cfd8e3', lw=1.0, zorder=0)
 
 plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-plt.savefig('figure_connected_vs_disconnected.png',
+plt.savefig(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         'figure_connected_vs_disconnected.png'),
             dpi=300, bbox_inches='tight', pad_inches=0.1, facecolor='white')

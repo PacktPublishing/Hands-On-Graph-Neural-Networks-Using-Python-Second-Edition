@@ -132,7 +132,7 @@ ax.legend(
     handler_map={tuple: HandlerTuple(ndivide=1)},
     loc='lower right', fontsize=9, framealpha=0.95, edgecolor=G5)
 fig.tight_layout()
-save(fig, "fig16_1_sensor_network.png")
+save(fig, "fig16_1_sensor_network.png", dpi=300)
 
 
 # ── Fig 15.2: Traffic speed per station ──────────────────────────────────────

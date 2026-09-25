@@ -323,7 +323,8 @@ from torch.nn import Linear, Sequential, BatchNorm1d, ReLU
 from torch_geometric.utils import to_networkx
 
 # Load PROTEINS without Constant transform — use native 3-dim features
-dataset = TUDataset(root='/tmp/PROTEINS', name='PROTEINS').shuffle()
+dataset = TUDataset(root=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    name='PROTEINS').shuffle()
 
 torch.manual_seed(0)
 

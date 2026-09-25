@@ -29,11 +29,11 @@ def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04):
                           facecolor=fill, edgecolor=G4,
                           linewidth=1.1, zorder=3)
     ax.add_patch(rect)
-    for li, line in enumerate(label.split('\n')):
-        offset = 0.11*(li - label.count('\n')/2)
-        ax.text(x, y-offset, line, ha='center', va='center',
-                fontsize=fs, color=fc, fontweight='bold',
-                fontfamily=FONT, zorder=4)
+    # Draw the label as one block so matplotlib spaces the lines according to
+    # the font size; a fixed offset per line overlaps at larger font sizes.
+    ax.text(x, y, label, ha='center', va='center', linespacing=1.5,
+            fontsize=fs, color=fc, fontweight='bold',
+            fontfamily=FONT, zorder=4)
 
 def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
     ax.annotate("", xy=(x2,y2), xytext=(x1,y1),
@@ -117,6 +117,6 @@ ax.text(5.5, 0.15, "The full graph never leaves the database — "
 ax.set_title("PyG Remote Backend — training reads from the graph database on demand",
              fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
 fig.tight_layout()
-save(fig, "fig09_2_remote_backend.png")
+save(fig, "fig09_2_remote_backend.png", dpi=300)
 
 print(f"\nAll figures saved to {OUT}")
