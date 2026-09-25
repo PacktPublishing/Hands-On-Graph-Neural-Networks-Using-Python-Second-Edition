@@ -45,6 +45,22 @@ def script_for(chapter_dir, figures):
     return "run.py" if (chapter_dir / "run.py").exists() else None
 
 
+def ssl_env():
+    """Point urllib at certifi's CA bundle.
+
+    The python.org build for macOS ships without CA certificates unless
+    'Install Certificates.command' has been run, and chapters that download
+    with urllib (14, 16) then fail with CERTIFICATE_VERIFY_FAILED.
+    """
+    if os.environ.get("SSL_CERT_FILE"):
+        return {}
+    try:
+        import certifi
+    except ImportError:
+        return {}
+    return {"SSL_CERT_FILE": certifi.where(), "REQUESTS_CA_BUNDLE": certifi.where()}
+
+
 def run_one(num, chapter_dir, script, timeout):
     log_path = LOG_DIR / f"chapter{num}{'_figures' if 'generate' in script else ''}.log"
     started = time.time()
@@ -56,7 +72,8 @@ def run_one(num, chapter_dir, script, timeout):
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 timeout=timeout,
-                env={**os.environ, "MPLBACKEND": "Agg", "PYTHONUNBUFFERED": "1"},
+                env={**os.environ, "MPLBACKEND": "Agg", "PYTHONUNBUFFERED": "1",
+                     **ssl_env()},
             )
             status = "OK" if proc.returncode == 0 else f"FAIL rc={proc.returncode}"
         except subprocess.TimeoutExpired:

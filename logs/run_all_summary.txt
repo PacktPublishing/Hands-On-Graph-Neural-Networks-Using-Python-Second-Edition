@@ -1,0 +1,49 @@
+Chapter02  SKIP   (nessuno script)
+Chapter03  ...    run.pyChapter03  OK               32.5s  run.py
+Chapter04  ...    run.pyChapter04  FAIL rc=1         5.3s  run.py
+            return self._op(*args, **(kwargs or {})) | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ | RuntimeError: Uniform sampling required for now
+Chapter05  ...    run.pyChapter05  OK               92.1s  run.py
+Chapter06  ...    run.pyChapter06  OK              256.9s  run.py
+Chapter07  ...    run.pyChapter07  OK              338.1s  run.py
+Chapter08  ...    run.pyChapter08  TIMEOUT >900s   900.1s  run.py
+            Training GraphSAGE on PPI (300 epochs) … | Epoch   0 | Train Loss: 0.610 | Val F1: 0.4312
+Chapter09  SKIP   (Neo4j via docker-compose)
+Chapter10  ...    run.pyChapter10  TIMEOUT >900s   900.0s  run.py
+            Epoch 010/150 | Train loss: 0.4617 | Val MAE: 0.5171 | Epoch 020/150 | Train loss: 0.4090 | Val MAE: 0.4053 | Epoch 030/150 | Train loss: 0.3647 | Val MAE: 0.34
+Chapter11  ...    run.pyChapter11  OK               22.6s  run.py
+Chapter12  ...    run.pyChapter12  OK              119.7s  run.py
+Chapter13  ...    run.pyChapter13  OK               20.4s  run.py
+Chapter14  ...    run.pyChapter14  FAIL rc=1         2.5s  run.py
+            File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/urllib/request.py", line 1351, in do_open | raise URLError(err) | urllib.error.URLError:
+Chapter15  ...    run.pyChapter15  OK               25.3s  run.py
+Chapter16  ...    run.pyChapter16  FAIL rc=1         1.3s  run.py
+            File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/urllib/request.py", line 1351, in do_open | raise URLError(err) | urllib.error.URLError:
+Chapter17  ...    run.pyChapter17  TIMEOUT >900s   900.2s  run.py
+            Epoch  10 | Loss: 0.0006 | Val loss: 0.0006 | Val F1: 0.9270 | Epoch  20 | Loss: 0.0008 | Val loss: 0.0007 | Val F1: 0.9513 | Epoch  30 | Loss: 0.0003 | Val los
+Chapter18  ...    run.pyChapter18  OK              377.9s  run.py
+Chapter19  SKIP   (large LLM download)
+Chapter20  SKIP   (nessuno script)
+
+=== RIEPILOGO ===
+Chapter02  SKIP no script                     0.0s
+Chapter03  OK                                32.5s
+Chapter04  FAIL rc=1                          5.3s
+Chapter05  OK                                92.1s
+Chapter06  OK                               256.9s
+Chapter07  OK                               338.1s
+Chapter08  TIMEOUT >900s                    900.1s
+Chapter09  SKIP Neo4j via docker-compose      0.0s
+Chapter10  TIMEOUT >900s                    900.0s
+Chapter11  OK                                22.6s
+Chapter12  OK                               119.7s
+Chapter13  OK                                20.4s
+Chapter14  FAIL rc=1                          2.5s
+Chapter15  OK                                25.3s
+Chapter16  FAIL rc=1                          1.3s
+Chapter17  TIMEOUT >900s                    900.2s
+Chapter18  OK                               377.9s
+Chapter19  SKIP large LLM download            0.0s
+Chapter20  SKIP no script                     0.0s
+
+19 capitoli, 6 con problemi: 04, 08, 10, 14, 16, 17
+Log in /Users/giuseppefutia/Desktop/code/Hands-On-Graph-Neural-Networks-Using-Python-Second-Edition/logs

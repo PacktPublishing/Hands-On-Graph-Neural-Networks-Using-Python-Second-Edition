@@ -313,7 +313,10 @@ model7 = Word2Vec(
     sg          = 1,
     hs          = 0,
     negative    = 5,
-    workers     = 2,
+    # gensim only honours `seed` with a single worker: with more threads the
+    # order in which examples reach the model varies, so the embeddings — and
+    # this figure — change from run to run.
+    workers     = 1,
     seed        = 0,
     epochs      = 30
 )

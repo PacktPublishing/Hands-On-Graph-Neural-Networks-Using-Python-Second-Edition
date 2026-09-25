@@ -1,0 +1,54 @@
+# Verified environment for the whole book — Python 3.11
+#
+# Every chapter runs against this single set of versions; the per-chapter
+# requirements.txt files state the minimum each chapter needs, and
+# tools/check_requirements.py checks they agree with the pins below.
+#
+#   python3.11 -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r requirements.txt
+#
+# macOS note: the python.org build ships without CA certificates. Run
+# "/Applications/Python 3.11/Install Certificates.command" once, otherwise the
+# downloads in Chapters 14 and 16 fail with CERTIFICATE_VERIFY_FAILED.
+
+--find-links https://data.pyg.org/whl/torch-2.5.1+cpu.html
+
+# Core
+torch==2.5.1
+# PyG is pinned to the commit this book was verified against: Chapter 19 needs
+# WebQSP/G-Retriever support that is newer than the 2.8.0.post1 release.
+torch-geometric @ git+https://github.com/pyg-team/pytorch_geometric.git@5c6461b2305ad068a6d61165b3c55852a11aaa41
+torch-cluster==1.6.3            # biased random walks for Node2Vec (Chapter 04)
+pyg-lib==0.4.0+pt25             # fast neighbour sampling (Chapter 08)
+torch-geometric-temporal==0.54.0  # Chapters 12, 14, 16
+
+# Scientific stack
+numpy==2.3.5
+scipy==1.17.1
+pandas==2.3.3
+scikit-learn==1.8.0
+networkx==3.6.1
+matplotlib==3.10.8
+certifi==2026.5.20
+
+# Embeddings and dimensionality reduction (Chapters 03, 04)
+gensim==4.4.0
+umap-learn==0.5.12
+
+# Graph databases (Chapter 09)
+neo4j==6.2.0
+graphdatascience==1.22
+kuzu==0.10.0
+ogb==1.3.6
+
+# Explainability (Chapter 15)
+captum==0.9.0
+
+# LLMs meet GNNs (Chapter 19)
+transformers==5.15.1
+accelerate==1.14.0
+datasets==5.0.1
+sentencepiece==0.2.2
+pcst-fast==1.0.10
+rank-bm25==0.2.2

@@ -18,6 +18,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
 from collections import defaultdict
+
+try:                       # biased random walks live in torch-cluster
+    import torch_cluster                                    # noqa: F401
+    torch_cluster_random_walk = torch.ops.torch_cluster.random_walk
+except (ImportError, AttributeError, RuntimeError):
+    torch_cluster_random_walk = None
 from io import BytesIO
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -193,6 +199,13 @@ def train_node2vec(data, p: float, q: float,
         q                    = q,
         sparse               = True,
     ).to(device)
+
+    # PyG picks pyg-lib for the random walks when it is installed, but that
+    # implementation only does uniform walks and raises "Uniform sampling
+    # required for now" as soon as p or q differ from 1 — which is the whole
+    # point of Node2Vec. torch-cluster does support biased walks, so use it.
+    if (p != 1 or q != 1) and torch_cluster_random_walk is not None:
+        model.random_walk_fn = torch_cluster_random_walk
 
     # gensim-style small uniform init: without this, the model gets stuck
     # and the embeddings fail to separate (see Chapter03 for the same fix).
