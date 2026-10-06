@@ -73,6 +73,49 @@ def summarise(run_py):
     return title, [l for l in body if l.strip()]
 
 
+# ---------------------------------------------------------------------------
+# Keeping an existing README in step, without rewriting what someone wrote.
+#
+# Several chapters have a hand-written README: Neo4j setup, expected results,
+# caveats. Regenerating those would throw that away. What *does* go stale is
+# the handful of blocks read from files — the requirements list and the figure
+# count. sync() refreshes exactly those, and only when the README already has
+# the generated block, so a hand-written one is never given sections it never
+# had.
+# ---------------------------------------------------------------------------
+
+REQ_BLOCK = re.compile(
+    r"(## Requirements\n\nCovered by the pinned environment[^\n]*\n\n```\n)"
+    r"(.*?)"
+    r"(```)",
+    re.DOTALL)
+FIG_COUNT = re.compile(r"^\d+ figures, listed in \[figures/INDEX\.md\]", re.MULTILINE)
+
+
+def packages(chapter_dir):
+    """The dependency lines of requirements.txt, as the README lists them."""
+    req = chapter_dir / "requirements.txt"
+    if not req.exists():
+        return None
+    pkgs = [l.split("#")[0].strip() for l in req.read_text().splitlines()]
+    return [p for p in pkgs if p and not p.startswith("-")]
+
+
+def sync(text, chapter_dir):
+    """Refresh the derived blocks of an existing README. Returns the new text."""
+    pkgs = packages(chapter_dir)
+    if pkgs is not None:
+        text = REQ_BLOCK.sub(
+            lambda m: m.group(1) + "\n".join(pkgs) + "\n" + m.group(3), text)
+
+    figs_dir = chapter_dir / "figures"
+    figs = sorted(figs_dir.glob("*.png")) if figs_dir.is_dir() else []
+    if figs:
+        text = FIG_COUNT.sub(
+            f"{len(figs)} figures, listed in [figures/INDEX.md]", text)
+    return text
+
+
 def build(chapter_dir, times):
     num = chapter_dir.name[-2:]
     run_py = chapter_dir / "run.py"
@@ -126,23 +169,59 @@ def build(chapter_dir, times):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=None)
-    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="rewrite READMEs from scratch, hand-written ones included")
+    ap.add_argument("--sync", action="store_true",
+                    help="refresh only the derived blocks of existing READMEs")
+    ap.add_argument("--check", action="store_true",
+                    help="report drift instead of writing")
     args = ap.parse_args()
 
     times = runtimes()
+    stale = []
     for chapter_dir in sorted(ROOT.glob("Chapter[0-9][0-9]")):
         num = chapter_dir.name[-2:]
         if args.only and num not in args.only:
             continue
         readme = chapter_dir / "README.md"
-        if readme.exists() and not args.force:
+
+        if not (chapter_dir / "run.py").exists():
+            if not (args.check or args.sync):
+                print(f"{chapter_dir.name}: nessun run.py, saltato")
+            continue
+
+        if not readme.exists():
+            if args.check:
+                stale.append((readme, "manca"))
+            else:
+                readme.write_text(build(chapter_dir, times))
+                print(f"{readme.relative_to(ROOT)}  (creato)")
+            continue
+
+        if args.sync or args.check:
+            current = readme.read_text()
+            updated = sync(current, chapter_dir)
+            if updated == current:
+                continue
+            if args.check:
+                stale.append((readme, "blocchi derivati non aggiornati"))
+            else:
+                readme.write_text(updated)
+                print(f"{readme.relative_to(ROOT)}  (blocchi derivati aggiornati)")
+            continue
+
+        if not args.force:
             print(f"{chapter_dir.name}: README già presente, lasciato com'è")
             continue
-        if not (chapter_dir / "run.py").exists():
-            print(f"{chapter_dir.name}: nessun run.py, saltato")
-            continue
+
         readme.write_text(build(chapter_dir, times))
         print(f"{readme.relative_to(ROOT)}")
+
+    if args.check:
+        for path, why in stale:
+            print(f"STALE  {path.relative_to(ROOT)} — {why}")
+        print(f"\n{len(stale)} README non allineati")
+        return 1 if stale else 0
     return 0
 
 

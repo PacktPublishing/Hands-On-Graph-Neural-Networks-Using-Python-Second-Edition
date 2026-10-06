@@ -54,6 +54,11 @@ Chapter09/kuzu_import/
 Chapter09/lbug_import/
 Chapter09/arxiv_kuzu/
 
+# Chapter19: trained weights (epoch_10.pt alone is 2.4 GB). run.py downloads
+# them from Hugging Face when missing; the small .json results stay in git.
+Chapter19/checkpoints/*.pt
+Chapter19/checkpoints/.cache/
+
 # Run outputs and logs
 outputs/
 *.log

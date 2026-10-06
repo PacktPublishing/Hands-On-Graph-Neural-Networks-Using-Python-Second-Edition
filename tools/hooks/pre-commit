@@ -1,0 +1,57 @@
+#!/bin/sh
+# Keep each chapter's generated files in step with its sources.
+#
+# run.py is the single source of truth for the notebook; run.py,
+# requirements.txt and figures/ are the sources for the derived blocks of the
+# README. When a commit touches one of those, the generated file is refreshed
+# and added to the same commit, so the two can never be committed out of step.
+#
+# READMEs are only *synced*, never regenerated: several chapters have a
+# hand-written README (Neo4j setup, expected results, caveats) and rewriting
+# those would throw that away. The sync touches the requirements list and the
+# figure count, and only where the generated block is already there.
+#
+# Installed by tools/install_hooks.sh. Skip it once with: git commit --no-verify
+
+set -e
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMRD)
+
+notebooks=$(echo "$staged" | sed -n 's#^Chapter\([0-9][0-9]\)/run\.py$#\1#p')
+readmes=$(echo "$staged" \
+    | sed -n -e 's#^Chapter\([0-9][0-9]\)/run\.py$#\1#p' \
+             -e 's#^Chapter\([0-9][0-9]\)/requirements\.txt$#\1#p' \
+             -e 's#^Chapter\([0-9][0-9]\)/figures/.*\.png$#\1#p' \
+    | sort -u)
+
+[ -z "$notebooks" ] && [ -z "$readmes" ] && exit 0
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "pre-commit: python3 non trovato, file generati non aggiornati" >&2
+    exit 1
+fi
+
+changed=""
+
+if [ -n "$notebooks" ]; then
+    python3 tools/make_notebooks.py --only $notebooks >/dev/null
+    for n in $notebooks; do
+        git add "Chapter$n/Chapter$n.ipynb"
+        changed="$changed Chapter$n.ipynb"
+    done
+fi
+
+if [ -n "$readmes" ]; then
+    python3 tools/make_chapter_readme.py --sync --only $readmes >/dev/null
+    for n in $readmes; do
+        if [ -f "Chapter$n/README.md" ]; then
+            git add "Chapter$n/README.md"
+            changed="$changed Chapter$n/README.md"
+        fi
+    done
+fi
+
+[ -n "$changed" ] && echo "pre-commit: rigenerati e aggiunti al commit —$changed"
+exit 0
