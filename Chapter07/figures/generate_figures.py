@@ -234,8 +234,8 @@ def make_fig_07_07(stats: dict) -> str:
 
     ax.set_ylim(0, 1.05)
     ax.set_xlabel("Node degree", fontsize=11, color=TEXT, fontfamily=FONT)
-    ax.set_ylabel("Test accuracy", fontsize=11, color=TEXT, fontfamily=FONT)
-    ax.set_title("GAT accuracy by node degree, CiteSeer",
+    ax.set_ylabel("Accuracy", fontsize=11, color=TEXT, fontfamily=FONT)
+    ax.set_title("GAT accuracy by node degree, CiteSeer (nodes not used for training)",
                  fontsize=13, fontweight="bold", color=TEXT,
                  fontfamily=FONT, pad=12)
 

@@ -9,10 +9,6 @@ Prerequisites:
     None beyond the dependencies above. ZINC-subset (12k molecules) is
     downloaded automatically by PyG on first run.
 
-New in this chapter (no first-edition counterpart):
-  - Part 1: GINE baseline on ZINC-subset (motivation for the chapter).
-  - Part 2: GraphGPS with Laplacian positional encodings, using PyG's
-            torch_geometric.nn.GPSConv.
 
 Design notes:
   - Both models output raw logits at the head; the regression loss is
@@ -24,6 +20,8 @@ Design notes:
     resulting numbers feed into Figure 10.3 (see generate_figures.py).
 """
 
+import time
+
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -32,6 +30,7 @@ from torch.nn import Embedding, Linear, ModuleList, Sequential, ReLU, BatchNorm1
 
 SEED = 0
 torch.manual_seed(SEED); np.random.seed(SEED)
+torch.cuda.manual_seed_all(SEED)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
@@ -122,6 +121,8 @@ val_loader   = DataLoader(val_ds,   batch_size=128)
 test_loader  = DataLoader(test_ds,  batch_size=128)
 
 gine      = GINEBaseline().to(device)
+n_par_gine = sum(p.numel() for p in gine.parameters())
+print(f"GINE parameters: {n_par_gine:,}")
 # Same optimizer recipe used for GraphGPS below, so the two models train
 # with matched budgets. Any accuracy gap comes from the architecture, not
 # from a more careful training loop for one of them.
@@ -143,6 +144,7 @@ def evaluate_gine(loader):
 
 
 print("\nTraining GINE baseline (150 epochs) …")
+best_val_g, best_state_g, t0 = float('inf'), None, time.time()
 for epoch in range(1, 151):
     gine.train()
     total_loss = 0.0
@@ -154,13 +156,23 @@ for epoch in range(1, 151):
         loss.backward(); optim_g.step()
         total_loss += float(loss) * batch.num_graphs
     scheduler_g.step()
+    val_mae = evaluate_gine(val_loader)
+    # Keep the weights that generalise best, rather than whatever the last
+    # epoch happens to produce.
+    if val_mae < best_val_g:
+        best_val_g = val_mae
+        best_state_g = {k: v.detach().clone()
+                        for k, v in gine.state_dict().items()}
     if epoch % 10 == 0:
-        val_mae = evaluate_gine(val_loader)
         print(f"  Epoch {epoch:03d}/150 | "
               f"Train loss: {total_loss/len(train_ds):.4f} | Val MAE: {val_mae:.4f}")
+sec_per_epoch_gine = (time.time() - t0) / 150
+gine.load_state_dict(best_state_g)
 
 gine_test_mae = evaluate_gine(test_loader)
-print(f"\nGINE test MAE: {gine_test_mae:.4f}")
+print(f"\nGINE test MAE: {gine_test_mae:.4f} "
+      f"(best val {best_val_g:.4f}) | "
+      f"{sec_per_epoch_gine:.1f}s per epoch on {device}")
 
 # Stratified error for Figure 10.3 (left bars)
 df_gine = stratified_mae(
@@ -183,7 +195,8 @@ from torch_geometric.nn         import GPSConv
 
 # A separate root directory so the pre_transform cache is not confused
 # with the plain ZINC used in Part 1.
-pe_transform = AddLaplacianEigenvectorPE(k=8, attr_name='pe')
+pe_transform = AddLaplacianEigenvectorPE(k=8, attr_name='pe',
+                                        is_undirected=True)
 
 train_pe = ZINC(root='./data/ZINC_PE', subset=True, split='train',
                 pre_transform=pe_transform)
@@ -223,13 +236,16 @@ class GraphGPS(torch.nn.Module):
         )
 
     def forward(self, x, pe, edge_index, edge_attr, batch):
-        # Random sign flip on the positional encodings — training only.
-        # Laplacian eigenvectors are sign-arbitrary; this makes the model
-        # sign-invariant.
+        # Random sign flip on the positional encodings - training only.
+        # Laplacian eigenvectors are sign-arbitrary. One sign per graph and
+        # per eigenvector: sampling a single sign for the whole mini-batch
+        # would give every graph in it the same flip, which is a much weaker
+        # invariance signal.
         if self.training:
-            sign = torch.randint(0, 2, (1, pe.size(1)),
+            num_graphs = int(batch.max().item()) + 1
+            sign = torch.randint(0, 2, (num_graphs, pe.size(1)),
                                  device=pe.device) * 2 - 1
-            pe = pe * sign
+            pe = pe * sign[batch]
 
         h = self.atom_embedding(x.squeeze(-1)) + self.pe_lin(pe)
         e = self.bond_embedding(edge_attr)
@@ -244,6 +260,9 @@ val_loader_pe   = DataLoader(val_pe,   batch_size=128)
 test_loader_pe  = DataLoader(test_pe,  batch_size=128)
 
 gps     = GraphGPS().to(device)
+n_par_gps = sum(p.numel() for p in gps.parameters())
+print(f"GraphGPS parameters: {n_par_gps:,} "
+      f"({n_par_gps/n_par_gine:.1f}x the GINE baseline)")
 # Weight decay + cosine annealing are what the GraphGPS paper uses for ZINC.
 # Adam without a schedule and with zero decay leaves the attention layers
 # oscillating for the entire run — the training does not converge cleanly
@@ -266,6 +285,7 @@ def evaluate_gps(loader):
 
 
 print("\nTraining GraphGPS (150 epochs) …")
+best_val_p, best_state_p, t0 = float('inf'), None, time.time()
 for epoch in range(1, 151):
     gps.train()
     total_loss = 0.0
@@ -278,13 +298,21 @@ for epoch in range(1, 151):
         loss.backward(); optim_p.step()
         total_loss += float(loss) * batch.num_graphs
     scheduler_p.step()
+    val_mae = evaluate_gps(val_loader_pe)
+    if val_mae < best_val_p:
+        best_val_p = val_mae
+        best_state_p = {k: v.detach().clone()
+                        for k, v in gps.state_dict().items()}
     if epoch % 10 == 0:
-        val_mae = evaluate_gps(val_loader_pe)
         print(f"  Epoch {epoch:03d}/150 | "
               f"Train loss: {total_loss/len(train_pe):.4f} | Val MAE: {val_mae:.4f}")
+sec_per_epoch_gps = (time.time() - t0) / 150
+gps.load_state_dict(best_state_p)
 
 gps_test_mae = evaluate_gps(test_loader_pe)
-print(f"\nGraphGPS test MAE: {gps_test_mae:.4f}")
+print(f"\nGraphGPS test MAE: {gps_test_mae:.4f} "
+      f"(best val {best_val_p:.4f}) | "
+      f"{sec_per_epoch_gps:.1f}s per epoch on {device}")
 
 df_gps = stratified_mae(
     gps, test_loader_pe,
@@ -303,6 +331,12 @@ print("=" * 60)
 print(f"  GINE test MAE:     {gine_test_mae:.4f}")
 print(f"  GraphGPS test MAE: {gps_test_mae:.4f}")
 print(f"  Reduction:         {(1 - gps_test_mae/gine_test_mae)*100:.1f}%")
+print(f"  Parameters:        GINE {n_par_gine:,} vs GraphGPS {n_par_gps:,} "
+      f"({n_par_gps/n_par_gine:.1f}x)")
+print(f"  Seconds/epoch:     GINE {sec_per_epoch_gine:.1f} vs "
+      f"GraphGPS {sec_per_epoch_gps:.1f} on {device}")
+print("  The two models are not parameter-matched. See ablation.ipynb for a "
+      "controlled comparison.")
 print("\nTo regenerate Figure 10.3 with these real values, edit "
       "generate_figures.py and replace the `gine` / `gps` arrays with "
       "the stratified means printed above.")

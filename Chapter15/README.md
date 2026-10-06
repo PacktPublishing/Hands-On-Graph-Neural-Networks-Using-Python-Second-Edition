@@ -30,5 +30,7 @@ torch>=2.2
 torch-geometric>=2.5
 captum>=0.6
 numpy>=1.26
+scipy>=1.11
+networkx>=3.0
 matplotlib>=3.8
 ```

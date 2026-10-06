@@ -1,9 +1,9 @@
 """
-Chapter 10 – All figures in grayscale.
+Chapter 10 - All figures in grayscale.
 Fig 10.1: local vs global attention (conceptual).
 Fig 10.2: anatomy of a GraphGPS block (conceptual).
-Fig 10.3: MAE by molecule size, GINE vs GraphGPS (synthetic placeholders;
-          replace with real values after running run.py locally).
+Fig 10.3: MAE by molecule size, GINE vs GraphGPS, from a run of run.py.
+Fig 10.4: ablation table, from a run of ablation.ipynb.
 """
 
 import matplotlib
@@ -192,14 +192,16 @@ fig.tight_layout()
 save(fig, "fig10_2_graphgps_block.png")
 
 
-# ── Fig 10.3: MAE by molecule size (synthetic placeholders) ─────────────────
+# ── Fig 10.3: MAE by molecule size ──────────────────────────────────────────
 print("Figure 10.3 …")
 fig, ax = plt.subplots(figsize=(10, 5.5))
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
 
 bins   = ['≤15', '16–20', '21–25', '26–30', '>30']
-gine   = [0.28, 0.24, 0.21, 0.27, 0.32]  # from Section 2 (real run)
-gps    = [0.25, 0.23, 0.17, 0.25, 0.22]  # from Section 4 (real run)
+# Stratified means printed by run.py. Replace these two arrays if you
+# re-run the chapter code; do not round them by hand.
+gine = [0.2792, 0.2462, 0.2121, 0.2700, 0.2939]
+gps  = [0.2124, 0.2175, 0.1564, 0.2555, 0.2452]
 
 x = np.arange(len(bins))
 w = 0.36
@@ -243,5 +245,36 @@ ax.set_title("Test MAE by molecule size: GINE vs GraphGPS",
              pad=10)
 fig.tight_layout()
 save(fig, "fig10_3_mae_by_size.png")
+
+
+# ── Fig 10.4: ablation — where does the gain come from? ─────────────────────
+print("Figure 10.4 …")
+
+rows = [
+    ["Message passing only",              "125,383", "0.3018 ± 0.0160"],
+    ["Message passing + PE",              "126,247", "0.3032 ± 0.0089"],
+    ["Message passing only, widened",     "574,503", "0.3054 ± 0.0032"],
+    ["Attention, no PE",                  "574,087", "0.2140 ± 0.0086"],
+    ["Attention + PE (full GraphGPS)",    "574,951", "0.2064 ± 0.0105"],
+]
+cols = ["Variant", "Parameters", "Test MAE"]
+cclr = [
+    ['white', 'white', G6],
+    ['white', 'white', G6],
+    ['white', 'white', G6],
+    ['white', 'white', G5],
+    ['white', 'white', G4],
+]
+
+fig, ax = plt.subplots(figsize=(11, 3.4))
+fig.patch.set_facecolor(BG); ax.axis('off')
+tbl = ax.table(cellText=rows, colLabels=cols,
+               cellLoc='center', loc='center', cellColours=cclr)
+tbl.auto_set_font_size(False); tbl.set_fontsize(11); tbl.scale(1, 2.2)
+for ci in range(len(cols)):
+    tbl[0, ci].set_facecolor(G1)
+    tbl[0, ci].set_text_props(color='white', fontweight='bold')
+fig.tight_layout()
+save(fig, "fig10_4_ablation.png")
 
 print(f"\nAll figures saved to {OUT}")

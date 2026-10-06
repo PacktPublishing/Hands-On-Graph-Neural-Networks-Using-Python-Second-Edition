@@ -7,13 +7,15 @@ Requirements:
 
 Figure generation is in figures/generate_figures.py.
 
-Key fixes versus the first edition:
-  - accuracy() uses .float().mean() instead of len() division
-  - accuracy-per-degree loop guards against empty degree bins
-  - GATv2Conv used throughout (GATv2 is strictly more expressive than GAT)
-  - NLLLoss paired with the log_softmax output (was CrossEntropyLoss, which
-    silently applied log_softmax twice and degraded training accuracy)
-  - GCN vs GAT comparison table from reproducible multi-run experiment
+Changes versus the first edition:
+  - accuracy() returns a Python float via .float().mean().item()
+  - the model is set to eval mode before the error analysis
+  - the error analysis by node degree excludes training nodes
+  - the accuracy-per-degree loop guards against empty degree bins
+  - NLLLoss replaces CrossEntropyLoss, since the forward pass already
+    returns log_softmax. Results are unchanged: log_softmax applied to a
+    log_softmax output returns the same values.
+  - a GCN vs GAT comparison over 20 runs has been added
 """
 
 import numpy as np
@@ -78,8 +80,9 @@ def leaky_relu(x, alpha=0.2):
 
 e = leaky_relu(a)
 
-# Step 6: Place scores into matrix — only connected pairs get a score
-E = np.zeros(A.shape)
+# Step 6: Place scores into matrix. Unconnected pairs get -inf, so that the
+# softmax gives them a weight of zero
+E = np.full(A.shape, -np.inf)
 E[connections[0], connections[1]] = e[0]
 print("\nUnnormalised attention matrix E:")
 print(np.round(E, 4))
@@ -96,7 +99,7 @@ print(np.round(W_alpha, 4))
 print("Row sums:", np.round(W_alpha.sum(axis=1), 4))
 
 # Step 8: Compute final node embeddings
-H_out = A.T @ W_alpha @ X @ W.T
+H_out = W_alpha @ X @ W.T
 print("\nFinal node embeddings H:")
 print(np.round(H_out, 4))
 print("\nGraph attention layer complete.")
@@ -156,7 +159,7 @@ class GAT(torch.nn.Module):
     Architecture:
       - Layer 1: GATv2Conv with `heads` attention heads (concatenated)
       - Layer 2: GATv2Conv with 1 head (for final classification)
-      - Dropout (p=0.6) before each layer, as in the original paper
+      - Dropout (p=0.6) on the input of each layer
       - ELU activation between layers
     """
 
@@ -174,11 +177,9 @@ class GAT(torch.nn.Module):
         return F.log_softmax(h, dim=1)
 
     def fit(self, data, epochs: int, verbose: bool = True):
-        # The forward returns log_softmax already, so NLLLoss is the right
-        # loss. Using CrossEntropyLoss here would apply log_softmax twice
-        # and silently degrade accuracy.
+        # The forward pass returns log_softmax, so NLLLoss is the matching loss.
         criterion = torch.nn.NLLLoss()
-        # lr=0.01, weight_decay=0.01 as in the original GAT paper for Cora
+        # lr=0.01, weight_decay=0.01, as in the first edition
         optimizer = torch.optim.Adam(self.parameters(),
                                      lr=0.01, weight_decay=0.01)
         self.train()
@@ -253,10 +254,11 @@ with torch.no_grad():
 
 node_degrees = degree(data_cs.edge_index[0],
                       num_nodes=data_cs.num_nodes).numpy()
+not_train_np = ~data_cs.train_mask.numpy()
 accuracies, sizes, labels = [], [], []
 
 for i in range(6):
-    mask = np.where(node_degrees == i)[0]
+    mask = np.where((node_degrees == i) & not_train_np)[0]
     if len(mask) == 0:
         accuracies.append(0.0); sizes.append(0)
     else:
@@ -265,7 +267,7 @@ for i in range(6):
         sizes.append(len(mask))
     labels.append(str(i))
 
-mask_hi = np.where(node_degrees > 5)[0]
+mask_hi = np.where((node_degrees > 5) & not_train_np)[0]
 if len(mask_hi) == 0:
     accuracies.append(0.0); sizes.append(0)
 else:
@@ -275,7 +277,7 @@ else:
 labels.append("6+")
 
 # Print summary
-print("\nAccuracy by degree bucket:")
+print("\nAccuracy by degree bucket (nodes not used for training):")
 for lbl, acc_v, sz in zip(labels, accuracies, sizes):
     bar = "█" * int(acc_v * 20)
     print(f"  degree {lbl:>2}: {acc_v*100:5.1f}%  {bar:<20}  (n={sz})")

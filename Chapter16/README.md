@@ -24,4 +24,5 @@ pandas>=2.0
 numpy>=1.26
 matplotlib>=3.8
 networkx>=3.0
+certifi
 ```

@@ -1,1 +1,18 @@
-Chapter08  ...
+Chapter08  ...Chapter08  TIMEOUT >5400s 5400.3s  run.py
+            Training GraphSAGE on PPI (300 epochs) … | Epoch   0 | Train Loss: 0.610 | Val F1: 0.4312 | Epoch  50 | Train Loss: 0.326 | Val F1: 0.8058
+Chapter10  ...Chapter10  OK             3164.8s  run.py
+Chapter14  ...Chapter14  FAIL rc=1        80.3s  run.py
+            File "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/urllib/request.py", line 1351, in do_open | raise URLError(err) | urllib.error.URLError:
+Chapter16  ...Chapter16  FAIL rc=-9     2781.5s  run.py
+            Training LSTM baseline (30 epochs) … | Epoch 10 | RMSE=2.3215 MAE=1.3683 | Epoch 20 | RMSE=2.2963 MAE=1.3436
+Chapter17  ...Chapter17  OK             2857.0s  run.py
+
+=== RIEPILOGO ===
+Chapter08  TIMEOUT >5400s   5400.3s
+Chapter10  OK               3164.8s
+Chapter14  FAIL rc=1          80.3s
+Chapter16  FAIL rc=-9       2781.5s
+Chapter17  OK               2857.0s
+
+5 capitoli, 3 con problemi: 08, 14, 16
+Log in /Users/giuseppefutia/Desktop/code/Hands-On-Graph-Neural-Networks-Using-Python-Second-Edition/logs

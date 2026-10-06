@@ -1,6 +1,9 @@
 """
-Chapter 9 – All figures in grayscale.
-Figs 9.1–9.2: pure matplotlib diagrams (conceptual, no data).
+Chapter 9 - All figures in grayscale.
+Figs 9.1-9.2: pure matplotlib diagrams (conceptual, no data).
+
+Titles and in-figure captions are omitted on purpose: the chapter carries
+that text in the figure caption below each image.
 """
 
 import matplotlib
@@ -9,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 import os
 
-OUT  = os.path.dirname(os.path.abspath(__file__))
+OUT  = "./output"
 os.makedirs(OUT, exist_ok=True)
 
 FONT = "DejaVu Sans"
@@ -29,11 +32,11 @@ def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04):
                           facecolor=fill, edgecolor=G4,
                           linewidth=1.1, zorder=3)
     ax.add_patch(rect)
-    # Draw the label as one block so matplotlib spaces the lines according to
-    # the font size; a fixed offset per line overlaps at larger font sizes.
-    ax.text(x, y, label, ha='center', va='center', linespacing=1.5,
-            fontsize=fs, color=fc, fontweight='bold',
-            fontfamily=FONT, zorder=4)
+    for li, line in enumerate(label.split('\n')):
+        offset = 0.17*(li - label.count("\n")/2)
+        ax.text(x, y-offset, line, ha='center', va='center',
+                fontsize=fs, color=fc, fontweight='bold',
+                fontfamily=FONT, zorder=4)
 
 def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
     ax.annotate("", xy=(x2,y2), xytext=(x1,y1),
@@ -62,11 +65,6 @@ for i, (x, title, subtitle, fill) in enumerate(stages):
         x_prev = stages[i-1][0]
         arr(ax, x_prev+0.85, 1.65, x-0.85, 1.65, color=G2, lw=1.6)
 
-ax.text(6.0, 0.5, "The graph moves from the OGB download through disk "
-        "into Neo4j, then into GDS, then into PyG.",
-        ha='center', fontsize=9, color=G3, fontfamily=FONT, fontstyle='italic')
-ax.set_title("Ingestion pipeline — OGBN-arxiv reaches PyG through Neo4j and GDS",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
 fig.tight_layout()
 save(fig, "fig09_1_ingestion_pipeline.png")
 
@@ -111,12 +109,7 @@ arr(ax, 7.7, 3.6, 6.5, 4.35, color=G2, lw=1.5)
 # NeighborLoader to output batch
 arr(ax, 5.5, 5.45, 5.5, 5.8, color=G1, lw=1.6)
 
-ax.text(5.5, 0.15, "The full graph never leaves the database — "
-        "each mini-batch queries only the neighborhoods it needs.",
-        ha='center', fontsize=9, color=G3, fontfamily=FONT, fontstyle='italic')
-ax.set_title("PyG Remote Backend — training reads from the graph database on demand",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
 fig.tight_layout()
-save(fig, "fig09_2_remote_backend.png", dpi=300)
+save(fig, "fig09_2_remote_backend.png")
 
 print(f"\nAll figures saved to {OUT}")

@@ -4,15 +4,13 @@ Hands-On Graph Neural Networks Using Python (2nd Edition)
 
 Requirements:
     pip install torch torch-geometric torch-geometric-temporal==0.54.0
-    pip install pandas numpy matplotlib networkx
+    pip install pandas numpy matplotlib networkx certifi
 
-Fixes versus the first edition:
-  - 'PeMSD7_W_228.csv.csv' corrected to 'PeMSD7_W_228.csv'
-  - snapshot.edge_weight corrected to snapshot.edge_attr in evaluation loop
-  - All plot colors converted to grayscale
-  - edge_index computed with np.stack(np.where(...)) for clarity
-  - Note added explaining why CPU is preferred for A3TGCN training
 """
+
+import os
+import ssl
+import time
 
 import numpy as np
 import pandas as pd
@@ -25,6 +23,42 @@ from io import BytesIO
 from urllib.request import urlopen
 from zipfile import ZipFile
 
+SEED = 0
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+
+# ── Figure style, shared by every plot in this file ──────────────────────────
+FIGDIR = 'figures'
+os.makedirs(FIGDIR, exist_ok=True)
+FONT = "DejaVu Sans"
+BG   = "white"
+G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
+G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
+
+
+def savefig(fig, name, dpi=200):
+    fig.savefig(f"{FIGDIR}/{name}", dpi=dpi, bbox_inches='tight',
+                facecolor=BG, edgecolor='none')
+    plt.close(fig)
+    print(f"  saved {name}")
+
+
+def metrics_table(rows, cols, name, figsize=(9, 2.8)):
+    """Grayscale table figure; the first data row is highlighted."""
+    cclr = [['white'] + ["#AAAAAA"] * (len(cols) - 1)]
+    cclr += [['white'] + [G6] * (len(cols) - 1) for _ in rows[1:]]
+    fig, ax = plt.subplots(figsize=figsize)
+    fig.patch.set_facecolor(BG); ax.axis('off')
+    tbl = ax.table(cellText=rows, colLabels=cols,
+                   cellLoc='center', loc='center', cellColours=cclr)
+    tbl.auto_set_font_size(False); tbl.set_fontsize(12); tbl.scale(1, 2.4)
+    for ci in range(len(cols)):
+        tbl[0, ci].set_facecolor(G1)
+        tbl[0, ci].set_text_props(color='white', fontweight='bold')
+    fig.tight_layout()
+    savefig(fig, name)
+
+
 # =============================================================================
 # PART 1 – Load and explore the PeMS-M dataset
 # =============================================================================
@@ -35,10 +69,21 @@ print("=" * 60)
 
 url = ('https://github.com/VeritasYin/STGCN_IJCAI-18/raw/master/'
        'dataset/PeMSD7_Full.zip')
-print("Downloading PeMSD7_Full.zip …")
-with urlopen(url) as zurl:
-    with ZipFile(BytesIO(zurl.read())) as zfile:
-        zfile.extractall('.')
+
+if os.path.exists('PeMSD7_V_228.csv') and os.path.exists('PeMSD7_W_228.csv'):
+    print("CSV files already present, skipping download.")
+else:
+    # Python on macOS does not use the system trust store, so urlopen fails
+    # with CERTIFICATE_VERIFY_FAILED unless it is given a CA bundle.
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ctx = ssl.create_default_context()
+    print("Downloading PeMSD7_Full.zip …")
+    with urlopen(url, context=ctx) as zurl:
+        with ZipFile(BytesIO(zurl.read())) as zfile:
+            zfile.extractall('.')
 
 # Fix from first edition: 'PeMSD7_W_228.csv.csv' → 'PeMSD7_W_228.csv'
 speeds    = pd.read_csv('PeMSD7_V_228.csv', names=range(0, 228))
@@ -54,8 +99,8 @@ plt.grid(linestyle=':')
 plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('Traffic speed — all 228 sensor stations')
 plt.tight_layout()
-plt.savefig('speeds_all.png', dpi=150, bbox_inches='tight')
-plt.close(); print("Saved speeds_all.png")
+plt.savefig(f'{FIGDIR}/fig16_2_all_speeds.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_2_all_speeds.png")
 
 # ── Mean + std plot ───────────────────────────────────────────────────────────
 mean = speeds.mean(axis=1)
@@ -69,8 +114,8 @@ plt.grid(linestyle=':')
 plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('Mean traffic speed with standard deviation')
 plt.legend(); plt.tight_layout()
-plt.savefig('speeds_mean.png', dpi=150, bbox_inches='tight')
-plt.close(); print("Saved speeds_mean.png")
+plt.savefig(f'{FIGDIR}/fig16_3_mean_speed.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_3_mean_speed.png")
 
 # ── Distance vs correlation ───────────────────────────────────────────────────
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), dpi=150)
@@ -81,8 +126,8 @@ ax1.set_title('Distance matrix')
 ax2.matshow(-np.corrcoef(speeds.T), cmap='Greys')
 ax2.set_xlabel('Sensor'); ax2.set_ylabel('Sensor')
 ax2.set_title('Negated correlation')
-plt.savefig('distance_corr.png', dpi=150, bbox_inches='tight')
-plt.close(); print("Saved distance_corr.png")
+plt.savefig(f'{FIGDIR}/fig16_4_matrices.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_4_matrices.png")
 
 
 # =============================================================================
@@ -117,8 +162,8 @@ cax = plt.matshow(adj, cmap='Greys_r', fignum=False)
 plt.colorbar(cax); plt.xlabel('Sensor'); plt.ylabel('Sensor')
 plt.title('PeMS-M weighted adjacency matrix')
 plt.tight_layout()
-plt.savefig('adj_matrix.png', dpi=150, bbox_inches='tight')
-plt.close(); print("Saved adj_matrix.png")
+plt.savefig(f'{FIGDIR}/fig16_5_adj_matrix.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_5_adj_matrix.png")
 
 # Graph plot
 rows_g, cols_g = np.where(adj > 0)
@@ -128,9 +173,10 @@ plt.figure(figsize=(10, 5), dpi=150)
 nx.draw(G, with_labels=False, node_size=20, node_color='#333333',
         edge_color='#AAAAAA', width=0.5)
 plt.title('PeMS-M sensor network as a graph')
-plt.tight_layout()
-plt.savefig('sensor_graph.png', dpi=150, bbox_inches='tight')
-plt.close(); print("Saved sensor_graph.png")
+# No tight_layout here: networkx draws on an axes without a standard layout,
+# and matplotlib warns that the result may be wrong. bbox_inches does the job.
+plt.savefig(f'{FIGDIR}/fig16_6_graph.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_6_graph.png")
 
 # Z-score normalisation
 def zscore(x, mean, std):
@@ -139,7 +185,12 @@ def zscore(x, mean, std):
 def inverse_zscore(x, mean, std):
     return x * std + mean
 
-speeds_norm = zscore(speeds, speeds.mean(axis=0), speeds.std(axis=0))
+# Statistics come from the training portion only. Computing them over the
+# whole series would let test-set information influence the scaling.
+split_idx = int(len(speeds) * 0.8)
+mean_tr   = speeds.iloc[:split_idx].mean(axis=0)
+std_tr    = speeds.iloc[:split_idx].std(axis=0)
+speeds_norm = zscore(speeds, mean_tr, std_tr)
 print(f"\nNormalised speeds (first row, first 5 cols):")
 print(speeds_norm.head(1).iloc[0, :5].values)
 
@@ -168,11 +219,31 @@ dataset = StaticGraphTemporalSignal(edge_index, edge_weight, xs, ys)
 print(f"\nFirst graph snapshot: {dataset[0]}")
 
 train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
-print(f"Train snapshots: {sum(1 for _ in train_dataset)}")
-print(f"Test snapshots:  {sum(1 for _ in test_dataset)}")
+n_train = sum(1 for _ in train_dataset)
+n_test  = sum(1 for _ in test_dataset)
+print(f"Train snapshots: {n_train}")
+print(f"Test snapshots:  {n_test}")
 
-# reset iterators
-train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
+# The graph is static, so the same edge_index and edge_weight serve every
+# snapshot and the temporal signal can be batched like any other tensor
+# dataset. Processing 32 snapshots at a time instead of one is what makes
+# this part run in minutes rather than tens of minutes.
+from torch.utils.data import TensorDataset, DataLoader as TorchDataLoader
+
+xs_t = torch.tensor(np.array(xs, dtype=np.float32))   # (T, 228, 12)
+ys_t = torch.tensor(np.array(ys, dtype=np.float32))   # (T, 228)
+ei_t = torch.tensor(edge_index, dtype=torch.long)
+ew_t = torch.tensor(edge_weight, dtype=torch.float32)
+
+split_t  = n_train
+BATCH_SIZE = 32
+# drop_last keeps every batch the same size, which A3TGCN2 expects.
+tr_loader_a3t = TorchDataLoader(
+    TensorDataset(xs_t[:split_t], ys_t[:split_t]),
+    batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
+te_loader_a3t = TorchDataLoader(
+    TensorDataset(xs_t[split_t:], ys_t[split_t:]),
+    batch_size=BATCH_SIZE, shuffle=False, drop_last=True)
 
 
 # =============================================================================
@@ -183,15 +254,19 @@ print("\n" + "=" * 60)
 print("PART 3 – A3T-GCN training and evaluation")
 print("=" * 60)
 
-from torch_geometric_temporal.nn.recurrent import A3TGCN
+from torch_geometric_temporal.nn.recurrent import A3TGCN2
 
 
 class TemporalGNN(torch.nn.Module):
-    def __init__(self, dim_in, periods):
+    def __init__(self, dim_in, periods, batch_size=BATCH_SIZE):
         super().__init__()
-        self.tgnn   = A3TGCN(in_channels=dim_in,
+        # A3TGCN2 is the batched implementation of the same cell. A3TGCN
+        # builds its hidden state without a batch dimension and fails as
+        # soon as the input carries one.
+        self.tgnn   = A3TGCN2(in_channels=dim_in,
                               out_channels=32,
-                              periods=periods)
+                              periods=periods,
+                              batch_size=batch_size)
         self.linear = torch.nn.Linear(32, periods)
 
     def forward(self, x, edge_index, edge_attr):
@@ -199,36 +274,35 @@ class TemporalGNN(torch.nn.Module):
         return self.linear(h)
 
 
-# A3TGCN runs more efficiently on CPU for this dataset:
-# the attention mechanism is sequential and benefits from CPU cache locality.
-model     = TemporalGNN(lags, 1).to('cpu')
+model     = TemporalGNN(lags, 1, BATCH_SIZE)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 print(f"\nModel: {model}")
 
-print("\nTraining A3T-GCN (30 epochs) …")
-model.train()
-for epoch in range(30):
-    optimizer.zero_grad()
+EPOCHS_A3T = 30
+print(f"\nTraining A3T-GCN ({EPOCHS_A3T} epochs) …")
+t_a3t = time.time()
+for epoch in range(EPOCHS_A3T):
+    model.train()
     epoch_losses = []
-    for snapshot in train_dataset:
-        y_pred = model(snapshot.x.unsqueeze(2),
-                       snapshot.edge_index,
-                       snapshot.edge_attr)
-        loss = torch.mean((y_pred - snapshot.y)**2)
-        # backward per snapshot to free the autograd graph, but do NOT step:
-        # gradients accumulate in each parameter's .grad tensor across the epoch.
+    for xb, yb in tr_loader_a3t:
+        optimizer.zero_grad()
+        # xb is (B, 228, 12). A3TGCN2 slices X[:, :, :, period], so the
+        # layout is (batch, nodes, features, periods): the 12 past readings
+        # are features and there is a single period.
+        y_pred = model(xb.unsqueeze(-1), ei_t, ew_t)
+        # squeeze: y_pred is (B, 228, 1) and yb is (B, 228). Subtracting them
+        # directly would broadcast to (B, 228, 228), comparing every station
+        # against every other and optimising the wrong thing.
+        loss = torch.mean((y_pred.squeeze(-1) - yb)**2)
         loss.backward()
+        optimizer.step()
         epoch_losses.append(loss.item())
-    # One optimizer step per epoch using the accumulated gradients.
-    # Semantically equivalent to the first edition's full-batch update, but
-    # memory-safe because the autograd graph of each snapshot is freed at once.
-    optimizer.step()
     if (epoch+1) % 10 == 0:
-        avg_loss = sum(epoch_losses) / len(epoch_losses)
-        print(f"  Epoch {epoch+1:>2} | Train MSE: {avg_loss:.4f}")
-
-# reset iterator for evaluation
-_, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
+        print(f"  Epoch {epoch+1:>2} | "
+              f"Train MSE: {sum(epoch_losses)/len(epoch_losses):.4f}")
+sec_a3t = time.time() - t_a3t
+print(f"A3T-GCN training time: {sec_a3t:.0f}s "
+      f"({sec_a3t/EPOCHS_A3T:.1f}s per epoch)")
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
 
@@ -236,42 +310,36 @@ def MAE(real, pred):  return np.mean(np.abs(pred - real))
 def RMSE(real, pred): return np.sqrt(np.mean((pred - real)**2))
 def MAPE(real, pred): return np.mean(np.abs(pred - real) / (real + 1e-5))
 
-# Ground truth (inverse z-score)
-y_test = []
-for snapshot in test_dataset:
-    y_hat  = inverse_zscore(snapshot.y.numpy(),
-                            speeds.mean(axis=0), speeds.std(axis=0))
-    y_test = np.append(y_test, y_hat)
-
-_, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
-
-# A3T-GCN predictions
-# Fix from first edition: snapshot.edge_attr (not snapshot.edge_weight)
+# Ground truth and A3T-GCN predictions, both in mph
 model.eval()
-gnn_pred = []
-for snapshot in test_dataset:
-    y_hat = model(snapshot.x.unsqueeze(2),
-                  snapshot.edge_index,
-                  snapshot.edge_attr).squeeze().detach().numpy()
-    y_hat = inverse_zscore(y_hat, speeds.mean(axis=0), speeds.std(axis=0))
-    gnn_pred = np.append(gnn_pred, y_hat)
+y_true_parts, gnn_parts = [], []
+with torch.no_grad():
+    for xb, yb in te_loader_a3t:
+        y_hat = model(xb.unsqueeze(-1), ei_t, ew_t).squeeze(-1).numpy()
+        gnn_parts.append(inverse_zscore(y_hat, mean_tr.values, std_tr.values))
+        y_true_parts.append(inverse_zscore(yb.numpy(),
+                                           mean_tr.values, std_tr.values))
+y_test   = np.concatenate(y_true_parts).ravel()
+gnn_pred = np.concatenate(gnn_parts).ravel()
 
-_, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
+# drop_last leaves the last partial batch out of the predictions, so both
+# baselines are evaluated on exactly the snapshots the model predicted.
+n_eval  = len(y_test) // speeds_arr.shape[1]
+eval_lo = split_t
+eval_hi = split_t + n_eval
 
-# Random Walk baseline
-rw_pred = []
-for snapshot in test_dataset:
-    y_hat = inverse_zscore(snapshot.x[:, -1].numpy(),
-                           speeds.mean(axis=0), speeds.std(axis=0))
-    rw_pred = np.append(rw_pred, y_hat)
+# Random Walk baseline: repeat the last observed value
+rw_pred = inverse_zscore(xs_t[eval_lo:eval_hi][:, :, -1].numpy(),
+                         mean_tr.values, std_tr.values).ravel()
 
-# Historical Average baseline
-ha_pred = []
-for i in range(lags, speeds_arr.shape[0] - horizon):
+# Historical Average baseline, over the same snapshots as above.
+# Snapshot k uses rows [k, k+lags) of the series, so the window starts at
+# lags + eval_lo and the two baselines cover the identical interval.
+ha_parts = []
+for i in range(lags + eval_lo, lags + eval_hi):
     y_hat = speeds_arr[i-lags:i].T.mean(axis=1)
-    y_hat = inverse_zscore(y_hat, speeds.mean(axis=0), speeds.std(axis=0))
-    ha_pred.append(y_hat)
-ha_pred = np.array(ha_pred).flatten()[-len(y_test):]
+    ha_parts.append(inverse_zscore(y_hat, mean_tr.values, std_tr.values))
+ha_pred = np.concatenate(ha_parts)
 
 print("\n" + "-" * 50)
 print(f"{'Model':<20} {'RMSE':>8} {'MAE':>8} {'MAPE':>8}")
@@ -283,17 +351,48 @@ for name, pred in [('A3T-GCN',    gnn_pred),
           f"{MAE(y_test,pred):>8.4f} {MAPE(y_test,pred)*100:>7.2f}%")
 print("-" * 50)
 
-# ── Prediction plot ───────────────────────────────────────────────────────────
-_, test_dataset = temporal_signal_split(dataset, train_ratio=0.8)
+# ── Figure 16.8: metrics table ────────────────────────────────────────────────
+rows_lr = [
+    ["A3T-GCN",            f"{RMSE(y_test, gnn_pred):.4f}",
+                           f"{MAE(y_test, gnn_pred):.4f}",
+                           f"{MAPE(y_test, gnn_pred)*100:.2f}%"],
+    ["Random Walk (RW)",   f"{RMSE(y_test, rw_pred):.4f}",
+                           f"{MAE(y_test, rw_pred):.4f}",
+                           f"{MAPE(y_test, rw_pred)*100:.2f}%"],
+    ["Historical Avg (HA)",f"{RMSE(y_test, ha_pred):.4f}",
+                           f"{MAE(y_test, ha_pred):.4f}",
+                           f"{MAPE(y_test, ha_pred)*100:.2f}%"],
+]
+cols_lr = ["Model", "RMSE", "MAE", "MAPE"]
+metrics_table(rows_lr, cols_lr, "fig16_8_metrics_table.png")
 
-model.eval()
-y_preds = []
-for snapshot in test_dataset:
-    y_hat = model(snapshot.x.unsqueeze(2),
-                  snapshot.edge_index,
-                  snapshot.edge_attr).squeeze().detach().numpy()
-    y_hat = inverse_zscore(y_hat, speeds.mean(axis=0), speeds.std(axis=0))
-    y_preds.append(y_hat.mean())
+# ── Figure 16.9: the same three models as bars ───────────────────────────────
+models = ["A3T-GCN", "Random Walk", "Historical Avg"]
+rmse_v = [RMSE(y_test, p) for p in (gnn_pred, rw_pred, ha_pred)]
+mae_v  = [MAE(y_test, p)  for p in (gnn_pred, rw_pred, ha_pred)]
+mape_v = [MAPE(y_test, p)*100 for p in (gnn_pred, rw_pred, ha_pred)]
+
+x = np.arange(len(models)); w = 0.25
+fig, ax = plt.subplots(figsize=(10, 5))
+fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
+b1 = ax.bar(x - w, rmse_v, w, label='RMSE', color=G0, alpha=0.85)
+b2 = ax.bar(x,     mae_v,  w, label='MAE',  color=G3, alpha=0.85)
+b3 = ax.bar(x + w, mape_v, w, label='MAPE (%)', color=G5, alpha=0.85)
+for bars in (b1, b2, b3):
+    for bar in bars:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., h + 0.2, f'{h:.1f}',
+                ha='center', va='bottom', fontsize=8, fontfamily=FONT)
+ax.set_xticks(x); ax.set_xticklabels(models, fontsize=11, fontfamily=FONT)
+ax.set_ylabel('Error value', fontsize=11, fontfamily=FONT)
+ax.legend(fontsize=10); ax.spines[['top','right']].set_visible(False)
+ax.grid(axis='y', linestyle=':', alpha=0.4)
+fig.tight_layout()
+savefig(fig, "fig16_9_metric_bars.png")
+
+# ── Prediction plot ───────────────────────────────────────────────────────────
+# Mean predicted speed per snapshot, reusing the predictions computed above.
+y_preds = gnn_pred.reshape(-1, speeds_arr.shape[1]).mean(axis=1)
 
 split = len(speeds) - len(y_preds)
 plt.figure(figsize=(10, 5), dpi=150)
@@ -307,8 +406,8 @@ plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('A3T-GCN — mean predicted traffic speed on the test set')
 plt.legend(); plt.grid(linestyle=':', alpha=0.4)
 plt.tight_layout()
-plt.savefig('predictions.png', dpi=150, bbox_inches='tight')
-plt.close(); print("\nSaved predictions.png")
+plt.savefig(f'{FIGDIR}/fig16_10_predictions.png', dpi=150, bbox_inches='tight')
+plt.close(); print("  saved fig16_10_predictions.png")
 print("Done.")
 
 
@@ -338,8 +437,14 @@ split_b = int(0.8 * len(xs_b))
 x_tr = torch.tensor(xs_b[:split_b]); y_tr = torch.tensor(ys_b[:split_b])
 x_te = torch.tensor(xs_b[split_b:]); y_te = torch.tensor(ys_b[split_b:])
 
-tr_loader = TorchDataLoader(TensorDataset(x_tr, y_tr), batch_size=32, shuffle=True)
-te_loader = TorchDataLoader(TensorDataset(x_te, y_te), batch_size=32, shuffle=False)
+# Same batch size as PART 3. Larger batches were tried and are slower here:
+# the LSTM reshapes to (B*228, 12, 1), so the work per batch grows with the
+# batch and memory traffic, not Python overhead, is what costs.
+BATCH_P4  = 32
+tr_loader = TorchDataLoader(TensorDataset(x_tr, y_tr),
+                            batch_size=BATCH_P4, shuffle=True)
+te_loader = TorchDataLoader(TensorDataset(x_te, y_te),
+                            batch_size=BATCH_P4, shuffle=False)
 
 
 def eval_metrics_batch(model, loader):
@@ -348,8 +453,8 @@ def eval_metrics_batch(model, loader):
         for xb, yb in loader:
             pred = model(xb).numpy()
             true = yb.numpy()
-            pred_mph = pred * speeds.std(axis=0).values + speeds.mean(axis=0).values
-            true_mph = true * speeds.std(axis=0).values + speeds.mean(axis=0).values
+            pred_mph = pred * std_tr.values + mean_tr.values
+            true_mph = true * std_tr.values + mean_tr.values
             all_pred.append(pred_mph); all_true.append(true_mph)
     pred = np.concatenate(all_pred); true = np.concatenate(all_true)
     rmse = np.sqrt(np.mean((pred-true)**2))
@@ -362,8 +467,11 @@ def eval_metrics_batch(model, loader):
 
 class LSTMBaseline(nn.Module):
     """
-    Independent LSTM per node — no spatial information.
-    Ablation study: quantifies the value of the graph in A3T-GCN.
+    LSTM applied to each station's series on its own, with no spatial
+    information. The weights are shared across stations: one model sees
+    228 independent univariate series rather than 228 separate models.
+    What it cannot do is use a station's neighbours, which is the point
+    of the ablation.
     """
     def __init__(self, input_size=1, hidden_size=64, num_layers=2):
         super().__init__()
@@ -382,8 +490,10 @@ class LSTMBaseline(nn.Module):
 lstm_m = LSTMBaseline()
 opt_l  = torch.optim.Adam(lstm_m.parameters(), lr=1e-3)
 
-print("Training LSTM baseline (30 epochs) …")
-for epoch in range(30):
+EPOCHS_LSTM = 30
+print(f"Training LSTM baseline ({EPOCHS_LSTM} epochs) …")
+t_lstm = time.time()
+for epoch in range(EPOCHS_LSTM):
     lstm_m.train()
     for xb, yb in tr_loader:
         opt_l.zero_grad()
@@ -393,6 +503,9 @@ for epoch in range(30):
         lstm_m.eval()
         rmse, mae, mape = eval_metrics_batch(lstm_m, te_loader)
         print(f"  Epoch {epoch+1} | RMSE={rmse:.4f} MAE={mae:.4f}")
+sec_lstm = time.time() - t_lstm
+print(f"LSTM training time: {sec_lstm:.0f}s "
+      f"({sec_lstm/EPOCHS_LSTM:.1f}s per epoch)")
 
 lstm_m.eval()
 rmse_l, mae_l, mape_l = eval_metrics_batch(lstm_m, te_loader)
@@ -417,7 +530,10 @@ class STAEformer(nn.Module):
             dim_feedforward=d_model * 4,
             dropout=dropout, batch_first=True, norm_first=True
         )
-        self.transformer = nn.TransformerEncoder(enc_layer, num_layers=num_layers)
+        # enable_nested_tensor is incompatible with norm_first and PyTorch
+        # warns about it on every run; the fast path is not used either way.
+        self.transformer = nn.TransformerEncoder(
+            enc_layer, num_layers=num_layers, enable_nested_tensor=False)
         self.output_proj = nn.Linear(d_model, out_steps)
 
     def forward(self, x):
@@ -431,10 +547,12 @@ class STAEformer(nn.Module):
 
 stae_m = STAEformer(num_nodes=228, in_steps=lags_b)
 opt_s  = torch.optim.Adam(stae_m.parameters(), lr=1e-3, weight_decay=1e-4)
-sched  = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s, T_max=30)
+EPOCHS_STAE = 30
+sched  = torch.optim.lr_scheduler.CosineAnnealingLR(opt_s, T_max=EPOCHS_STAE)
 
-print("\nTraining STAEformer (30 epochs) …")
-for epoch in range(30):
+print(f"\nTraining STAEformer ({EPOCHS_STAE} epochs) …")
+t_stae = time.time()
+for epoch in range(EPOCHS_STAE):
     stae_m.train()
     for xb, yb in tr_loader:
         opt_s.zero_grad()
@@ -445,6 +563,9 @@ for epoch in range(30):
         stae_m.eval()
         rmse, mae, mape = eval_metrics_batch(stae_m, te_loader)
         print(f"  Epoch {epoch+1} | RMSE={rmse:.4f} MAE={mae:.4f}")
+sec_stae = time.time() - t_stae
+print(f"STAEformer training time: {sec_stae:.0f}s "
+      f"({sec_stae/EPOCHS_STAE:.1f}s per epoch)")
 
 stae_m.eval()
 rmse_s, mae_s, mape_s = eval_metrics_batch(stae_m, te_loader)
@@ -477,6 +598,21 @@ print(f"{'Model':<22} {'RMSE':>8} {'MAE':>8} {'MAPE':>8}")
 print("-" * 65)
 print(f"{'LSTM (no graph)':<22} {rmse_l:>8.4f} {mae_l:>8.4f} {mape_l:>7.2f}%")
 print(f"{'STAEformer':<22} {rmse_s:>8.4f} {mae_s:>8.4f} {mape_s:>7.2f}%")
+print("-" * 65)
+
+# ── Figures 16.12 and 16.13: the two comparison tables ───────────────────────
+metrics_table(rows_lr, cols_lr, "fig16_12_longrange_comparison.png")
+metrics_table(
+    [["STAEformer",      f"{rmse_s:.4f}", f"{mae_s:.4f}", f"{mape_s:.2f}%"],
+     ["LSTM (no graph)", f"{rmse_l:.4f}", f"{mae_l:.4f}", f"{mape_l:.2f}%"]],
+    ["Model", "RMSE", "MAE", "MAPE"],
+    "fig16_13_shortrange_comparison.png", figsize=(9, 2.4))
+
+print("\nTraining time on this machine")
+print("-" * 65)
+print(f"{'A3T-GCN':<22} {sec_a3t:>6.0f}s  ({EPOCHS_A3T} epochs)")
+print(f"{'LSTM (no graph)':<22} {sec_lstm:>6.0f}s  ({EPOCHS_LSTM} epochs)")
+print(f"{'STAEformer':<22} {sec_stae:>6.0f}s  ({EPOCHS_STAE} epochs)")
 print("-" * 65)
 
 print("""
