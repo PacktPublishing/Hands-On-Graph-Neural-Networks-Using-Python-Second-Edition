@@ -11,4 +11,5 @@ python figures/generate_figures.py
 | --- | --- | --- |
 | 19.1 | `fig19_1_gretriever_pipeline.png` | `generate_figures.py` |
 | 19.2 | `fig19_2_soft_prompting.png` | `generate_figures.py` |
-| 19.3 | `fig19_3_gretriever_vs_textonly.png` | `generate_figures.py` |
+| 19.3 | `fig19_3_gretriever_vs_textonly.png` | by hand |
+| 19.4 | `fig19_4_ablation.png` | by hand |

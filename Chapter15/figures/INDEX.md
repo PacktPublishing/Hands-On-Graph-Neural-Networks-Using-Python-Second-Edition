@@ -11,6 +11,6 @@ python figures/generate_figures.py
 | --- | --- | --- |
 | 15.1 | `fig15_1_taxonomy.png` | `generate_figures.py` |
 | 15.2 | `fig15_2_gnnexplainer_schema.png` | `generate_figures.py` |
-| 15.3 | `fig15_3_mutag_explanation.png` | `generate_figures.py` |
-| 15.4 | `fig15_4_amazon_node0.png` | `generate_figures.py` |
-| 15.5 | `fig15_5_amazon_node101.png` | `generate_figures.py` |
+| 15.3 | `fig15_3_mutag_explanation.png` | by hand |
+| 15.4 | `fig15_4_amazon_node0.png` | by hand |
+| 15.5 | `fig15_5_amazon_node101.png` | by hand |

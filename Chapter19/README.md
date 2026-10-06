@@ -1,67 +1,100 @@
 # Chapter 19 – Large Language Models Meet Graph Neural Networks
 
-Code for Chapter 19 of *Hands-On Graph Neural Networks Using Python*,
-Second Edition (Packt).
-
-## Files
-
-| File | Purpose |
-|---|---|
-| `run.py` | G-Retriever training + text-only baseline + comparison |
-| `generate_figures.py` | Regenerates Figures 19.1, 19.2, 19.3 |
-| `requirements.txt` | Python dependencies |
+G-Retriever on ExplaGraphs: a GNN encodes the graph into a soft prompt, the
+same graph also goes into the prompt as text, and a small LLM answers. The
+chapter evaluates that against baselines that drop one ingredient at a time.
 
 ## Setup
 
 ```bash
+cd Chapter19
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Approximately 2 GB of disk are needed for the Qwen3-0.6B model and the
-WebQSP-tiny dataset (both downloaded on first run).
+The LLM is Qwen3-0.6B, small enough to run on a laptop CPU and needing no
+HuggingFace access approval. ExplaGraphs is downloaded from GitHub on first
+run, into `data/`.
 
-`pcst_fast` is a C++ extension that compiles at install time. On macOS
-with Apple Silicon this requires the Xcode command-line tools
-(`xcode-select --install`). On Linux, `build-essential` is enough.
+## Trained weights
 
-## Run
+`run.py` and `ablation.py` do not train. They read the weights from
+`checkpoints/` and, when a file is missing, download it from Hugging Face
+(`giuseppefutia/hands-on-gnn-ch19-gretriever`) automatically. Nothing to do by
+hand.
+
+The weights are not in git — `epoch_10.pt` alone is 2.4 GB. The small `.json`
+results they produce are, so the figures can be regenerated without a GPU.
+
+To reproduce the weights instead of downloading them, run
+[train_colab.ipynb](train_colab.ipynb) and
+[ablation_colab.ipynb](ablation_colab.ipynb) on a GPU, then
+`export_checkpoint.py` to publish them.
+
+## Running it
 
 ```bash
-python run.py                # trains G-Retriever, then runs comparison
-python figures/generate_figures.py   # regenerates figures
+python run.py                        # the three systems of Figure 19.3
+python ablation.py                   # adds the two of Figure 19.4
+python figures/generate_figures.py   # conceptual figures 19.1 and 19.2
 ```
 
-Expected running time on CPU (Apple Silicon): ~30 minutes for training,
-plus a few seconds per inference. On GPU, the same run completes in
-minutes.
+`ablation.py` reads `checkpoints/comparison.json`, so run `run.py` first.
+Inference over the 398 test samples takes a few minutes on CPU.
 
 ## What to expect
 
-The chapter is deliberately configured for reproducibility on a laptop:
+Accuracy on the 398 ExplaGraphs test samples, from the verified run:
 
-- LLM = Qwen3-0.6B (600 M parameters, CPU-friendly)
-- Dataset = WebQSP-tiny (~500 examples)
-- Training = 3 epochs, small learning rate
+| system | graph in the prompt | GNN soft prompt | accuracy |
+|---|---|---|---|
+| G-Retriever | yes | yes | 86.7% |
+| G-Retriever, soft prompt removed at inference | yes | no | 87.7% |
+| LoRA baseline, no GNN | yes | no | 87.2% |
+| G-Retriever trained on the soft prompt only | no | yes | 80.4% |
+| LoRA trained without any graph | no | no | 81.2% |
 
-For this reason **no Hit@1 numbers are reported**. The comparison in
-Part 3 is qualitative: for each of a few question types (single-hop,
-multi-hop, aggregation), the script prints the expected answer,
-G-Retriever's answer, and the text-only baseline's answer.
+Read the table by column rather than by row. The graph is worth about six
+points, and it is the **linearized graph in the prompt** that carries them: the
+three systems that see it land within a point of each other, and the two that
+do not fall together. The GNN soft prompt contributes nothing measurable here —
+removing it at inference even scores marginally higher, which is within noise.
 
-Expect small-LLM artifacts: incomplete answers, occasional
-hallucination, repeated tokens. The point is to observe whether the
-*type of error* differs between the two pipelines, not to measure
-absolute quality.
+This is a negative result and the chapter keeps it. ExplaGraphs graphs are tiny,
+a handful of triples, so a language model reads them perfectly well as text and
+has little use for a learned graph embedding. The soft prompt is the mechanism
+worth understanding; this dataset is not where it pays off.
 
 ## Caveats
 
-- Question indices in Part 3 (`categories = {'single_hop': 0, ...}`) are
-  placeholders. WebQSP-tiny does not label questions by reasoning type;
-  inspect a few examples and replace the indices with genuine
-  representatives before drawing conclusions.
-- `torch_geometric.llm.models.GRetriever` is available from PyG 2.7.
-  Earlier versions ship the class as `torch_geometric.nn.models.GRetriever`
-  with a slightly different constructor (see the PyG changelog).
-- Qwen3-0.6B requires no HuggingFace access approval. If you switch to
-  Llama-3, request access via the model card first.
+- `torch_geometric.llm.models.GRetriever` is used here, which is where the
+  class lives from PyG 2.7 on. Earlier versions ship it as
+  `torch_geometric.nn.models.GRetriever` with a slightly different constructor
+  (see the PyG changelog). `requirements.txt` pins 2.8.
+- If you switch to a gated model such as Llama-3, request access on its model
+  card first.
+- Expect small-LLM artifacts in the per-sample output: incomplete answers,
+  occasional repetition. The accuracy above is computed on the normalized
+  answer, not the raw generation.
+
+## Figures
+
+4 figures, listed in [figures/INDEX.md](figures/INDEX.md). Figures 19.1 and
+19.2 are conceptual and come from `figures/generate_figures.py`; 19.3 is
+written by `run.py` and 19.4 by `ablation.py`.
+
+## Requirements
+
+Covered by the pinned environment in the repository root. This chapter needs:
+
+```
+torch>=2.2
+torch_geometric==2.8.0
+transformers>=4.44
+accelerate>=0.30
+peft>=0.12
+sentencepiece>=0.2
+huggingface_hub>=0.23
+numpy>=1.26
+matplotlib>=3.8
+```

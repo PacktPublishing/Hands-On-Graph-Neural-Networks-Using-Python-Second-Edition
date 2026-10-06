@@ -12,3 +12,4 @@ python figures/generate_figures.py
 | 10.1 | `fig10_1_local_vs_global_attention.png` | `generate_figures.py` |
 | 10.2 | `fig10_2_graphgps_block.png` | `generate_figures.py` |
 | 10.3 | `fig10_3_mae_by_size.png` | `generate_figures.py` |
+| 10.4 | `fig10_4_ablation.png` | `generate_figures.py` |
