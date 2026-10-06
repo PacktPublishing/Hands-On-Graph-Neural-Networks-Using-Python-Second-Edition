@@ -26,7 +26,7 @@ time but is not necessary.
 
 ```bash
 python run.py                # trains GINE and GraphGPS in sequence
-python generate_figures.py   # regenerates figures
+python figures/generate_figures.py   # regenerates figures
 ```
 
 Expected running time on CPU: ~5 minutes for Part 1 (GINE), ~15 minutes

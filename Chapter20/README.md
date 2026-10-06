@@ -51,7 +51,7 @@ Five sections:
   workflow (one model per graph per task) vs the foundation workflow
   (one pretrained backbone reused across tasks).
 
-To regenerate: `python generate_figures.py`.
+To regenerate: `python figures/generate_figures.py`.
 
 ## Notes
 

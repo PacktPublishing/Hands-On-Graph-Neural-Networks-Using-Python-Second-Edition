@@ -14,7 +14,7 @@ container or server.
 
 ```bash
 python run.py                # runs both Part 1 and Part 2
-python generate_figures.py   # regenerates figures
+python figures/generate_figures.py   # regenerates figures
 ```
 
 Ingestion is idempotent: rerunning the script skips reloading Neo4j if the

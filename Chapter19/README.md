@@ -29,7 +29,7 @@ with Apple Silicon this requires the Xcode command-line tools
 
 ```bash
 python run.py                # trains G-Retriever, then runs comparison
-python generate_figures.py   # regenerates figures
+python figures/generate_figures.py   # regenerates figures
 ```
 
 Expected running time on CPU (Apple Silicon): ~30 minutes for training,
