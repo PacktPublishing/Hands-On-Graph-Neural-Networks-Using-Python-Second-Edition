@@ -35,21 +35,26 @@ fi
 
 changed=""
 
+# Stage a generated file only if regenerating actually changed it, so the
+# hook never claims to have rewritten something it left alone.
+stage_if_changed() {
+    [ -f "$1" ] || return 0
+    git diff --quiet -- "$1" && return 0
+    git add "$1"
+    changed="$changed $1"
+}
+
 if [ -n "$notebooks" ]; then
     python3 tools/make_notebooks.py --only $notebooks >/dev/null
     for n in $notebooks; do
-        git add "Chapter$n/Chapter$n.ipynb"
-        changed="$changed Chapter$n.ipynb"
+        stage_if_changed "Chapter$n/Chapter$n.ipynb"
     done
 fi
 
 if [ -n "$readmes" ]; then
     python3 tools/make_chapter_readme.py --sync --only $readmes >/dev/null
     for n in $readmes; do
-        if [ -f "Chapter$n/README.md" ]; then
-            git add "Chapter$n/README.md"
-            changed="$changed Chapter$n/README.md"
-        fi
+        stage_if_changed "Chapter$n/README.md"
     done
 fi
 
