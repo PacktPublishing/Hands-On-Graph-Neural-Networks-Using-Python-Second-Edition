@@ -1,0 +1,272 @@
+[
+  {
+    "epoch": 1,
+    "lr": 1e-05,
+    "train_loss": 1.69600971504149,
+    "val_loss": 0.47375040164979704,
+    "val_acc": 0.44936708860759494,
+    "train_pass_s": 26.699979782104492,
+    "val_eval_s": 7.866942644119263,
+    "samples_s": 0.17380595207214355,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "counter"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "counter"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "counter"
+      }
+    ]
+  },
+  {
+    "epoch": 2,
+    "lr": 1e-05,
+    "train_loss": 0.33271717782739113,
+    "val_loss": 0.2824730532723263,
+    "val_acc": 0.7805907172995781,
+    "train_pass_s": 26.520063400268555,
+    "val_eval_s": 7.716426849365234,
+    "samples_s": 0.11273002624511719,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 3,
+    "lr": 9.849231551964772e-06,
+    "train_loss": 0.29512175592927176,
+    "val_loss": 0.41833895516843644,
+    "val_acc": 0.8312236286919831,
+    "train_pass_s": 28.759711265563965,
+    "val_eval_s": 7.726588249206543,
+    "samples_s": 0.11206936836242676,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 4,
+    "lr": 9.415111107797446e-06,
+    "train_loss": 0.31312697279354174,
+    "val_loss": 0.45373245679172525,
+    "val_acc": 0.8607594936708861,
+    "train_pass_s": 26.552900314331055,
+    "val_eval_s": 7.738193988800049,
+    "samples_s": 0.11265802383422852,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 5,
+    "lr": 8.750000000000001e-06,
+    "train_loss": 0.29861836385271234,
+    "val_loss": 0.4012021694284407,
+    "val_acc": 0.8628691983122363,
+    "train_pass_s": 27.75919795036316,
+    "val_eval_s": 7.704166650772095,
+    "samples_s": 0.11238861083984375,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 6,
+    "lr": 7.934120444167327e-06,
+    "train_loss": 0.23897143931788006,
+    "val_loss": 0.37362598770178085,
+    "val_acc": 0.8755274261603375,
+    "train_pass_s": 25.605350494384766,
+    "val_eval_s": 7.644407510757446,
+    "samples_s": 0.11152100563049316,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 7,
+    "lr": 7.065879555832675e-06,
+    "train_loss": 0.20500031072085348,
+    "val_loss": 0.486458434214062,
+    "val_acc": 0.8607594936708861,
+    "train_pass_s": 28.70694851875305,
+    "val_eval_s": 7.7275917530059814,
+    "samples_s": 0.1126401424407959,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 8,
+    "lr": 6.250000000000001e-06,
+    "train_loss": 0.16888546754229194,
+    "val_loss": 0.4913309368408506,
+    "val_acc": 0.8713080168776371,
+    "train_pass_s": 27.66730499267578,
+    "val_eval_s": 7.7146687507629395,
+    "samples_s": 0.11259126663208008,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 9,
+    "lr": 5.584888892202556e-06,
+    "train_loss": 0.14893360108631404,
+    "val_loss": 0.49717253835672326,
+    "val_acc": 0.8755274261603375,
+    "train_pass_s": 27.640904188156128,
+    "val_eval_s": 7.7296974658966064,
+    "samples_s": 0.11266708374023438,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  },
+  {
+    "epoch": 10,
+    "lr": 5.1507684480352296e-06,
+    "train_loss": 0.1351796290369333,
+    "val_loss": 0.4472092251267926,
+    "val_acc": 0.8670886075949367,
+    "train_pass_s": 27.213834285736084,
+    "val_eval_s": 7.74736213684082,
+    "samples_s": 0.11382532119750977,
+    "samples": [
+      {
+        "belief_arg": "/no_think Belief: Payday loans are detrimental.",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: All governments should subsidize space exploration so that if ",
+        "expected": "support",
+        "predicted": "support"
+      },
+      {
+        "belief_arg": "/no_think Belief: People who engage in assisted suicide have no conscience",
+        "expected": "support",
+        "predicted": "support"
+      }
+    ]
+  }
+]
