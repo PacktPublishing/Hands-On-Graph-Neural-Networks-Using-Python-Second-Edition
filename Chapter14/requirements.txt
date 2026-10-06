@@ -1,7 +1,11 @@
-torch>=2.2
-torch-geometric>=2.5
-torch-geometric-temporal==0.54.0
+--find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+torch==2.12.*
+torch-geometric==2.8.*
+torch-scatter==2.1.2
+torch-sparse==0.6.18
+torch-geometric-temporal==0.56.2
 pandas>=2.0
 matplotlib>=3.8
 scikit-learn>=1.4
 numpy>=1.26
+networkx>=3.0
