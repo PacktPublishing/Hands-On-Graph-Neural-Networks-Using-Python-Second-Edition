@@ -8,10 +8,13 @@ Requirements:
     pip install kuzu==0.10.0             # for Part 2 (optional)
 
 Prerequisites (services):
-    Neo4j 5 with the Graph Data Science plugin must be running on
-    bolt://localhost:7687. Both services are provided in docker-compose.yml:
+    Neo4j 5 with the Graph Data Science plugin, started by docker-compose.yml:
 
         docker compose up -d
+
+    It is published on the +1 ports, so it does not clash with a Neo4j you
+    may already be running: bolt on 7688 and the browser on
+    http://localhost:7475. Override NEO4J_URI to point somewhere else.
 
     Kùzu is embedded and needs no container.
 
@@ -68,7 +71,7 @@ torch.manual_seed(SEED); np.random.seed(SEED)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-NEO4J_URI      = os.environ.get('NEO4J_URI',      'bolt://localhost:7687')
+NEO4J_URI      = os.environ.get('NEO4J_URI',      'bolt://localhost:7688')
 NEO4J_USER     = os.environ.get('NEO4J_USER',     'neo4j')
 NEO4J_PASSWORD = os.environ.get('NEO4J_PASSWORD', 'password')
 NEO4J_IMPORT_DIR = os.path.abspath('./neo4j_import')
