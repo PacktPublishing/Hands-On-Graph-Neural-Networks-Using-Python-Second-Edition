@@ -9,7 +9,7 @@ python figures/generate_figures.py
 python figures/generate_figures_norm_gray.py
 ```
 
-`run.py` took about 4 minutes on the machine this was verified on, CPU only.
+`run.py` took about 2 minutes on the machine this was verified on, CPU only.
 
 ## Data
 

@@ -8,7 +8,7 @@ python run.py
 python figures/generate_figures.py
 ```
 
-`run.py` took about 6 minutes on the machine this was verified on, CPU only.
+`run.py` took about 3 minutes on the machine this was verified on, CPU only.
 
 ## Data
 
