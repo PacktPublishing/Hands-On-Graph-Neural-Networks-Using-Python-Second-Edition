@@ -51,4 +51,4 @@ accelerate==1.14.0
 datasets==5.0.1
 sentencepiece==0.2.2
 peft==0.21.2
-huggingface-hub==1.33.0   # transformers 5.15 requires <2.0
+huggingface-hub==1.28.0   # the version the book was verified on; transformers 5.15 requires <2.0
