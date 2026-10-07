@@ -1,4 +1,4 @@
-# Chapter 12 - Predicting Links with Graph Neural Networks
+# Chapter 12 – Predicting Links with Graph Neural Networks
 
 ## Running it
 

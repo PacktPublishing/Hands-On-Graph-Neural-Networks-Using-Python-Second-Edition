@@ -1,4 +1,4 @@
-"""Chapter 14 – Temporal Graph Neural Networks.
+"""Chapter 14 – Temporal Graph Neural Networks
 
 Part 1  EvolveGCN-H and EvolveGCN-O on WikiMaths (torch-geometric-temporal)
 Part 2  MPNN-LSTM on England Covid (torch-geometric-temporal)

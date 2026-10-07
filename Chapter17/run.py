@@ -1,5 +1,5 @@
 """
-Chapter 17 - Detecting Anomalies Using Heterogeneous GNNs
+Chapter 17 – Detecting Anomalies Using Heterogeneous GNNs
 Hands-On Graph Neural Networks Using Python (2nd Edition)
 
 Requirements:

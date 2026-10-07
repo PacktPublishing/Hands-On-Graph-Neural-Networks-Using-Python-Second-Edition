@@ -1,5 +1,5 @@
 """
-Chapter 12 - Predicting Links with Graph Neural Networks
+Chapter 12 – Predicting Links with Graph Neural Networks
 Hands-On Graph Neural Networks Using Python (2nd Edition)
 
 Requirements:

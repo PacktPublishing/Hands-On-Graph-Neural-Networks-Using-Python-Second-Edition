@@ -1,5 +1,5 @@
 """
-Chapter 19 - Large Language Models Meet Graph Neural Networks
+Chapter 19 – Large Language Models Meet Graph Neural Networks
 Hands-On Graph Neural Networks Using Python, Second Edition
 
 Evaluation of G-Retriever on the ExplaGraphs test set against two baselines,

@@ -1,5 +1,5 @@
 """
-Chapter 15 - Explaining Graph Neural Networks
+Chapter 15 – Explaining Graph Neural Networks
 Hands-On Graph Neural Networks Using Python, Second Edition
 
 PART 1  GIN on MUTAG, explained with GNNExplainer (edge mask only) at two
