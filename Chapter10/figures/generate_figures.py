@@ -200,8 +200,8 @@ fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
 bins   = ['≤15', '16–20', '21–25', '26–30', '>30']
 # Stratified means printed by run.py. Replace these two arrays if you
 # re-run the chapter code; do not round them by hand.
-gine = [0.2792, 0.2462, 0.2121, 0.2700, 0.2939]
-gps  = [0.2124, 0.2175, 0.1564, 0.2555, 0.2452]
+gine = [0.2814, 0.2440, 0.2057, 0.2717, 0.3174]
+gps  = [0.2453, 0.2315, 0.1656, 0.2524, 0.2176]
 
 x = np.arange(len(bins))
 w = 0.36
