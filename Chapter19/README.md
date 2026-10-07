@@ -89,7 +89,7 @@ Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
 torch>=2.2
-torch_geometric==2.8.0
+torch-geometric>=2.8
 transformers>=4.44
 accelerate>=0.30
 peft>=0.12

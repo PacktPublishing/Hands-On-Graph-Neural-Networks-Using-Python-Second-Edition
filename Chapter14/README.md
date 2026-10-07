@@ -25,8 +25,8 @@ Downloaded on first run, into this folder:
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch==2.12.*
-torch-geometric==2.8.*
+torch>=2.5
+torch-geometric>=2.8
 torch-scatter==2.1.2
 torch-sparse==0.6.18
 torch-geometric-temporal==0.56.2

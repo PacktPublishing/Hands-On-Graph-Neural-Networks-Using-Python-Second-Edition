@@ -16,12 +16,12 @@
 
 # Core
 torch==2.5.1
-# PyG is pinned to the commit this book was verified against: Chapter 19 needs
-# WebQSP/G-Retriever support that is newer than the 2.8.0.post1 release.
-torch-geometric @ git+https://github.com/pyg-team/pytorch_geometric.git@5c6461b2305ad068a6d61165b3c55852a11aaa41
+torch-geometric==2.8.0.post1
 torch-cluster==1.6.3            # biased random walks for Node2Vec (Chapter 04)
 pyg-lib==0.4.0+pt25             # fast neighbour sampling (Chapter 08)
-torch-geometric-temporal==0.54.0  # Chapters 12, 14, 16
+torch-scatter==2.1.2            # required by torch-geometric-temporal
+torch-sparse==0.6.18            # required by torch-geometric-temporal
+torch-geometric-temporal==0.56.2  # Chapters 14 and 16
 
 # Scientific stack
 numpy==2.3.5
@@ -50,5 +50,5 @@ transformers==5.15.1
 accelerate==1.14.0
 datasets==5.0.1
 sentencepiece==0.2.2
-pcst-fast==1.0.10
-rank-bm25==0.2.2
+peft==0.21.2
+huggingface-hub==1.33.0   # transformers 5.15 requires <2.0

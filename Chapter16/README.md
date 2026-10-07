@@ -19,7 +19,7 @@ Covered by the pinned environment in the repository root. This chapter needs:
 ```
 torch>=2.2
 torch-geometric>=2.5
-torch-geometric-temporal==0.54.0
+torch-geometric-temporal==0.56.2
 pandas>=2.0
 numpy>=1.26
 matplotlib>=3.8
