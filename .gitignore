@@ -62,7 +62,13 @@ Chapter19/checkpoints/.cache/
 # Run outputs and logs
 outputs/
 *.log
-run*_output.txt
+*_output.txt
+
+# Author's own tooling and diagnostics: useful while writing the book, not
+# part of what a reader clones. Kept locally, never versioned.
+tools/backup.sh
+Chapter*/diag_*.py
+Chapter*/verify_*.py
 
 # Byte-compiled / optimized
 __pycache__/
