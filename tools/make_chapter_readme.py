@@ -23,7 +23,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SUMMARY = ROOT / "logs" / "run_all_summary.txt"
+# The quick campaign, then the long one that re-runs whatever it could not
+# finish. Later wins: a chapter that timed out at 900s and then completed in
+# 3164s is an OK chapter that takes 53 minutes, not a timeout.
+SUMMARIES = [ROOT / "logs" / "run_all_summary.txt",
+             ROOT / "logs" / "run_slow_summary.txt"]
 
 # Dataset class -> what the reader ends up downloading.
 DATASETS = {
@@ -44,14 +48,24 @@ DATASETS = {
 
 
 def runtimes():
-    if not SUMMARY.exists():
-        return {}
+    """{chapter: (status, seconds)} from the run campaigns.
+
+    The status field is free text after the verdict — "TIMEOUT >900s",
+    "FAIL rc=-9", "SKIP Neo4j via docker-compose" — so the seconds are taken
+    from the end of the line and the verdict from its first word. An earlier
+    version anchored the seconds straight after the verdict, which silently
+    dropped every FAIL and TIMEOUT line: the chapters a reader most needs
+    warning about were the ones with no measured time at all.
+    """
     out = {}
-    for line in SUMMARY.read_text(errors="ignore").splitlines():
-        m = re.match(r"Chapter(\d\d)\s+(OK|FAIL[^\s]*|TIMEOUT[^\s]*|SKIP.*?)\s+([\d.]+)s\s*$",
-                     line.strip())
-        if m:
-            out[m.group(1)] = (m.group(2), float(m.group(3)))
+    for summary in SUMMARIES:
+        if not summary.exists():
+            continue
+        for line in summary.read_text(errors="ignore").splitlines():
+            m = re.match(r"Chapter(\d\d)\s+(OK|FAIL|TIMEOUT|SKIP)\b.*?([\d.]+)s\s*$",
+                         line.strip())
+            if m:
+                out[m.group(1)] = (m.group(2), float(m.group(3)))
     return out
 
 
@@ -64,7 +78,12 @@ def summarise(run_py):
     title = lines[0]
     body = []
     for line in lines[1:]:
-        if re.match(r"^\s*(Requirements|Key fixes|Figure generation)", line):
+        # The summary is the prose under the title. Everything from the first
+        # structural heading on is for someone reading run.py — the per-part
+        # walkthrough, the requirements, the list of files it writes — and
+        # belongs in the notebook, not in the README.
+        if re.match(r"^\s*(Requirements|Key fixes|Figure generation"
+                    r"|PARTE?\s*\d|Parts?\s*\d|Figures produced)", line):
             break
         # every docstring repeats the book title under the chapter title
         if "Hands-On Graph Neural Networks" in line:
@@ -84,6 +103,34 @@ def summarise(run_py):
 # had.
 # ---------------------------------------------------------------------------
 
+# The measured-runtime sentence, in one place, so build() and sync() cannot
+# word it differently.
+# Only the generated sentence, whole and on its own line. A hand-written
+# README may open the same way and then carry on ("... CPU only — the two
+# models are trained one after the other"); replacing that would behead the
+# author's sentence to restore a number that already agreed.
+RUNTIME_LINE = re.compile(
+    r"^`run\.py` (?:took [^\n]*?CPU only\.|"
+    r"did not finish within [^\n]*?epochs\.|"
+    r"trains for a long time[^\n]*?\.)$",
+    re.MULTILINE)
+
+
+def runtime_sentence(status):
+    if not status:
+        return None
+    verdict, secs = status
+    if verdict == "OK":
+        took = f"{secs:.0f} seconds" if secs < 90 else f"about {secs / 60:.0f} minutes"
+        return (f"`run.py` took {took} on the machine this was verified on, "
+                "CPU only.")
+    if verdict == "TIMEOUT":
+        return (f"`run.py` did not finish within {secs / 60:.0f} minutes on the "
+                "machine this was verified on, CPU only. Expect to leave it "
+                "running, or to reduce the number of epochs.")
+    return None
+
+
 REQ_BLOCK = re.compile(
     r"(## Requirements\n\nCovered by the pinned environment[^\n]*\n\n```\n)"
     r"(.*?)"
@@ -101,12 +148,16 @@ def packages(chapter_dir):
     return [p for p in pkgs if p and not p.startswith("-")]
 
 
-def sync(text, chapter_dir):
+def sync(text, chapter_dir, times=None):
     """Refresh the derived blocks of an existing README. Returns the new text."""
     pkgs = packages(chapter_dir)
     if pkgs is not None:
         text = REQ_BLOCK.sub(
             lambda m: m.group(1) + "\n".join(pkgs) + "\n" + m.group(3), text)
+
+    sentence = runtime_sentence((times or {}).get(chapter_dir.name[-2:]))
+    if sentence and RUNTIME_LINE.search(text):
+        text = RUNTIME_LINE.sub(lambda _: sentence, text, count=1)
 
     figs_dir = chapter_dir / "figures"
     figs = sorted(figs_dir.glob("*.png")) if figs_dir.is_dir() else []
@@ -130,15 +181,11 @@ def build(chapter_dir, times):
         lines.append(f"python figures/{script.name}")
     lines += ["```", ""]
 
-    status = times.get(num)
-    if status and status[0] == "OK":
-        mins = status[1] / 60
-        took = f"{status[1]:.0f} seconds" if status[1] < 90 else f"about {mins:.0f} minutes"
-        lines += [f"`run.py` took {took} on the machine this was verified on, "
-                  "CPU only.", ""]
-    elif status and status[0].startswith("TIMEOUT"):
-        lines += ["`run.py` trains for a long time — over 15 minutes on the "
-                  "machine this was verified on, CPU only.", ""]
+    # FAIL is deliberately not reported: the summary is only as fresh as the
+    # last campaign, and a chapter fixed since then would be libelled by it.
+    sentence = runtime_sentence(times.get(num))
+    if sentence:
+        lines += [sentence, ""]
 
     if run_py.exists():
         used = sorted({DATASETS[k] for k in DATASETS if k in run_py.read_text()})
@@ -200,7 +247,7 @@ def main():
 
         if args.sync or args.check:
             current = readme.read_text()
-            updated = sync(current, chapter_dir)
+            updated = sync(current, chapter_dir, times)
             if updated == current:
                 continue
             if args.check:

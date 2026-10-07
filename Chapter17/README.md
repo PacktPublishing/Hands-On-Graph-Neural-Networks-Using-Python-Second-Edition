@@ -1,4 +1,4 @@
-# Chapter 17 - Detecting Anomalies Using Heterogeneous GNNs
+# Chapter 17 – Detecting Anomalies Using Heterogeneous GNNs
 
 ## Running it
 
@@ -7,6 +7,8 @@ cd Chapter17
 python run.py
 python figures/generate_figures.py
 ```
+
+`run.py` took about 48 minutes on the machine this was verified on, CPU only.
 
 ## Figures
 

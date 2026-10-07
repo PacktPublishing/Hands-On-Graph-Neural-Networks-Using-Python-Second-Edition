@@ -8,6 +8,8 @@ python run.py
 python figures/generate_figures.py
 ```
 
+`run.py` did not finish within 90 minutes on the machine this was verified on, CPU only. Expect to leave it running, or to reduce the number of epochs.
+
 ## Data
 
 Downloaded on first run, into this folder:
