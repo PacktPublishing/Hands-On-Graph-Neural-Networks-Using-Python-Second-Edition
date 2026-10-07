@@ -9,6 +9,11 @@ chapter; the console shows one line per chapter with status and duration.
     python tools/run_all.py --timeout 120      # quick smoke test
     python tools/run_all.py --only 07 11 16    # selected chapters
     python tools/run_all.py --figures          # figure scripts instead
+    python tools/run_all.py --python /path/to/venv/bin/python
+
+The last form is how a release is verified: build a fresh environment from
+requirements.txt and run the book against that, rather than against the
+.venv the chapters were written in, which accumulates packages.
 """
 
 import argparse
@@ -19,7 +24,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PYTHON = str(ROOT / ".venv" / "bin" / "python")
+DEFAULT_PYTHON = str(ROOT / ".venv" / "bin" / "python")
 LOG_DIR = ROOT / "logs"
 
 # Chapters needing a service or a large download; skipped unless asked for.
@@ -62,14 +67,14 @@ def ssl_env():
     return {"SSL_CERT_FILE": certifi.where(), "REQUESTS_CA_BUNDLE": certifi.where()}
 
 
-def run_one(num, chapter_dir, script, timeout):
+def run_one(num, chapter_dir, script, timeout, python=DEFAULT_PYTHON):
     tag = "_" + Path(script).stem if "generate" in script else ""
     log_path = LOG_DIR / f"chapter{num}{tag}.log"
     started = time.time()
     with open(log_path, "w") as log:
         try:
             proc = subprocess.run(
-                [PYTHON, script],
+                [python, script],
                 cwd=chapter_dir,
                 stdout=log,
                 stderr=subprocess.STDOUT,
@@ -96,6 +101,9 @@ def main():
     ap.add_argument("--timeout", type=int, default=1200)
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--figures", action="store_true")
+    ap.add_argument("--python", default=DEFAULT_PYTHON,
+                    help="interpreter to run the chapters with "
+                         "(default: the repository's own .venv)")
     ap.add_argument("--include-services", action="store_true",
                     help="also run chapters needing Neo4j or large downloads")
     args = ap.parse_args()
@@ -116,7 +124,8 @@ def main():
         for script in scripts:
             label = num if len(scripts) == 1 else f"{num} {Path(script).stem}"
             print(f"Chapter{label}  ...", end="", flush=True)
-            status, secs, log_path = run_one(num, d, script, args.timeout)
+            status, secs, log_path = run_one(num, d, script, args.timeout,
+                                            args.python)
             detail = tail_error(log_path) if status != "OK" else ""
             results.append((label, status, secs, detail))
             print(f"\rChapter{label}  {status:<14} {secs:6.1f}s  {script}", flush=True)
