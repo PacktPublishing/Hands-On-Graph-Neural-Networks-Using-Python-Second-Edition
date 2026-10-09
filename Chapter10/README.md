@@ -22,7 +22,7 @@ python run.py                        # trains GINE, then GraphGPS
 python figures/generate_figures.py   # regenerates figures
 ```
 
-`run.py` took about 53 minutes on the machine this was verified on, CPU only —
+`run.py` took about 26 minutes on the machine this was verified on, CPU only —
 the two models are trained one after the other, 150 epochs each. A GPU is not
 required but shortens this considerably.
 
@@ -32,10 +32,10 @@ Test MAE on ZINC-subset, from the verified run:
 
 | model | test MAE |
 |---|---|
-| GINE baseline | 0.2400 |
-| GraphGPS | 0.2091 |
+| GINE baseline | 0.2416 |
+| GraphGPS | 0.2025 |
 
-That is a gain of about 13%, not the order-of-magnitude difference the
+That is a gain of about 16%, not the order-of-magnitude difference the
 GraphGPS paper reports on other datasets — and the chapter treats that as the
 interesting result rather than an embarrassment. ZINC molecules average 23
 atoms, so six rounds of message passing already reach most of the graph, and
@@ -43,7 +43,8 @@ there is little left for global attention to add. Exact numbers vary with seed
 and with the PyTorch/PyG version.
 
 The stratified breakdown by molecule size, Figure 10.3, is where the two models
-differ most: both degrade on the largest molecules, GINE more sharply.
+differ most. The error is not monotonic in molecule size: both models do best
+on the middle bins, 21-25 atoms, and worse at both ends.
 
 ## The ablation behind Figure 10.4
 
@@ -59,9 +60,9 @@ design at matched depth and width over several seeds, and produces
 the command above; they are drawn in grayscale, as printed.
 
 The stratified bars in Figure 10.3 are hard-coded near the top of the Figure
-10.3 block in `figures/generate_figures.py`, from an earlier run. After running
-`run.py` yourself, replace the `gine` and `gps` arrays with the stratified means
-it prints if you want the figure to match your own numbers exactly.
+10.3 block in `figures/generate_figures.py`. They match the verified run to four
+decimals; if you re-run the chapter, replace the `gine` and `gps` arrays with
+the stratified means it prints.
 
 ## Requirements
 
