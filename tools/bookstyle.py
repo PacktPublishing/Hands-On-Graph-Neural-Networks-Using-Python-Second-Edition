@@ -54,10 +54,23 @@ MIN_PT = 8.0         # smallest point size that survives printing
 # The grayscale palette the chapters share, darkest first. The book is printed
 # without colour, so figures are authored that way rather than converted.
 FONT = "DejaVu Sans"
-BG = "white"
+BG = "#FFFFFF"
 G0, G1, G2, G3 = "#111111", "#333333", "#555555", "#777777"
 G4, G5, G6 = "#999999", "#BBBBBB", "#DDDDDD"
 GREYS = [G0, G1, G2, G3, G4, G5, G6]
+
+# Which greys may carry text. G3 on white is 4.48:1, under the 4.5 threshold
+# before any ink spread, so it belongs to rules and fills, never to a label.
+# G2 at 7.46:1 is the lightest grey a word may be set in.
+INK = G0             # labels, titles, anything the reader must read
+INK_SOFT = G2        # secondary notes, the lightest text allowed
+TEXT_GREYS = {G0, G1, G2}
+
+# Fills for boxes that carry a label. Dark type on a light fill, rather than
+# white type on a dark one: at 8.5 pt the ink spread of a press closes up the
+# counters of reversed letters, which is the one thing a 300 dpi file cannot
+# fix. All three keep INK above 6.5:1.
+FILLS = [G6, G5, G4]
 
 
 def apply():
@@ -121,7 +134,22 @@ def save(fig, path, dpi=DPI):
 # ---------------------------------------------------------------------------
 # Audit
 # ---------------------------------------------------------------------------
+def luminance(hex_colour):
+    channels = [int(hex_colour.lstrip('#')[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                for c in channels]
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def contrast(fg, bg=BG):
+    """WCAG contrast ratio. Text wants 4.5:1 on screen, more on paper."""
+    high, low = sorted((luminance(fg), luminance(bg)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
 FIGSIZE = re.compile(r'figsize=\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)')
+PALE_TEXT = re.compile(
+    r'(?:ax|plt)\.(?:text|annotate)\([^)]*?color\s*=\s*(G[3-6])', re.S)
 FONTSIZE = re.compile(r'(?:fontsize|font_size|fs)\s*=\s*(\d+(?:\.\d+)?)')
 USES_BOOKSTYLE = re.compile(r'^\s*(?:from|import)\s+bookstyle', re.M)
 
@@ -198,6 +226,21 @@ def main():
         print()
 
     print(f"{failing} figure(s) whose text will not be readable in print")
+
+    # Size is only half of readability; a label set in a pale grey fails on
+    # paper whatever its point size.
+    pale = []
+    for path in scripts():
+        for grey in PALE_TEXT.findall(path.read_text()):
+            pale.append((path.relative_to(ROOT), grey))
+    if pale:
+        print(f"\n{len(pale)} label(s) set in a grey too pale to read "
+              f"(G2 at {contrast(G2):.1f}:1 is the lightest allowed)")
+        seen = {}
+        for name, grey in pale:
+            seen.setdefault(name, []).append(grey)
+        for name, greys in seen.items():
+            print(f"  {name}  {', '.join(sorted(set(greys)))}")
 
     if args.pngs:
         low = []
