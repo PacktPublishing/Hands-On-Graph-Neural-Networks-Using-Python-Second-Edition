@@ -7,8 +7,13 @@ the figure.
 
 ## Figures
 
-1 figure, listed in [figures/INDEX.md](figures/INDEX.md): a disconnected graph
-beside a connected one, the distinction the chapter builds on.
+3 figures, listed in [figures/INDEX.md](figures/INDEX.md): a disconnected
+graph beside a connected one, the common types of graph, and a graph beside
+its adjacency matrix.
+
+Figures 2.1, 2.2, 2.3, 2.7 and 2.8 are not here. They were accepted as
+supplied and have no source in this repository, so the chapter's printed
+figures come from two places.
 
 Regenerate it with:
 
