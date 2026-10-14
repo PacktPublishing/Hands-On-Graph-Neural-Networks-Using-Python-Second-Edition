@@ -18,29 +18,22 @@ citeseer_stats.json):
 
 import json
 import os
+import sys
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, DPI, G0, G1, G2, G3, G4, G5, G6)
 
-# ── Style, matched to Chapter 6 ──────────────────────────────────────────────
-FONT = "DejaVu Sans"
-BG   = "white"
+plt = apply()
 
-# Grayscale palette G0..G6
-G0 = "#111111"   # near black (darkest, for isolated / problem bars)
-G1 = "#333333"
-G2 = "#555555"   # dark grey
-G3 = "#777777"   # mid grey (main bars)
-G4 = "#999999"   # lighter mid grey
-G5 = "#BBBBBB"   # light grey (grid / labels)
-G6 = "#DDDDDD"   # very light grey
-
-MAIN_BAR = G3    # regular bar fill
-ISO_BAR  = G0    # isolated-nodes bar (degree 0) — highlighted
-TEXT     = G0    # main text colour
+# Bars are filled light and labelled dark: the sample sizes are written inside
+# them, and white type on a mid grey is 4.5:1 before the press closes it up.
+MAIN_BAR = G5    # regular bar fill
+ISO_BAR  = G4    # isolated-nodes bar (degree 0), picked out by a dark edge
+TEXT     = INK   # main text colour
 GRID     = G6    # grid colour
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -95,30 +88,28 @@ def draw_citeseer_subgraph(G, labels, out_path: str) -> str:
     shades  = [G0, G1, G2, G3, G4, G5]
     markers = ["o", "s", "^", "D", "v", "P"]
 
-    fig, ax = plt.subplots(figsize=(11, 7), dpi=200)
-    fig.patch.set_facecolor(BG)
+    fig, ax = figure(aspect=0.80)
     ax.set_facecolor(BG)
-    nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G4, width=0.9)
+    nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G4, width=0.6)
     for c in range(6):
         idx = [n for n in G.nodes if labels[n] == c]
         nx.draw_networkx_nodes(G, pos, nodelist=idx, ax=ax,
                                node_color=shades[c], node_shape=markers[c],
-                               node_size=55, edgecolors="white",
-                               linewidths=0.6, label=CITESEER_CLASSES[c])
-    ax.legend(title="Category", loc="upper left", bbox_to_anchor=(1.0, 1.0),
-              frameon=False, prop={"family": FONT, "size": 10},
-              title_fontproperties={"family": FONT, "size": 10,
-                                    "weight": "bold"})
+                               node_size=26, edgecolors="white",
+                               linewidths=0.4, label=CITESEER_CLASSES[c])
+    # The legend goes under the plot: beside it, it would take a fifth of the
+    # 5.5 inches the graph itself needs.
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=6,
+              frameon=False, handletextpad=0.2, columnspacing=0.9,
+              prop={"family": FONT, "size": 8.5})
     ax.set_title(f"CiteSeer: sampled subgraph ({G.number_of_nodes()} nodes, "
-                 f"{nx.number_connected_components(G)} connected components)",
-                 fontsize=13, fontweight="bold", color=TEXT,
-                 fontfamily=FONT, pad=12)
+                 f"{nx.number_connected_components(G)} components)",
+                 fontsize=10.5, fontweight="bold", color=TEXT,
+                 fontfamily=FONT)
     ax.set_aspect("equal")
     ax.axis("off")
 
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=200, bbox_inches="tight", facecolor=BG)
-    plt.close(fig)
+    save_fig(fig, out_path)
     return out_path
 
 
@@ -159,49 +150,56 @@ def make_fig_07_05(stats: dict) -> str:
     labels = list(counts_by_bucket.keys())
     values = list(counts_by_bucket.values())
 
-    fig, ax = plt.subplots(figsize=(11, 4.6), dpi=200)
-    fig.patch.set_facecolor(BG)
+    fig, ax = figure(aspect=0.52)
     ax.set_facecolor(BG)
 
-    bar_colors = [ISO_BAR if lbl == "0" else MAIN_BAR for lbl in labels]
-    bars = ax.bar(labels, values, color=bar_colors, edgecolor="white",
-                  linewidth=0.8, width=0.75)
+    bars = ax.bar(labels, values, color=MAIN_BAR, edgecolor=G3,
+                  linewidth=0.5, width=0.78)
+    # The degree-0 bar is the point of the figure, so it carries a dark edge
+    # rather than a dark fill, which would swallow any label put on it.
+    for rect, lbl in zip(bars, labels):
+        if lbl == "0":
+            rect.set_facecolor(ISO_BAR)
+            rect.set_edgecolor(INK)
+            rect.set_linewidth(1.1)
 
-    # Value labels on top of each bar
+    # Sixteen counts of up to four digits do not fit side by side across 5.5
+    # inches, so they are set upright instead of across.
     y_max = max(values)
     for rect, v in zip(bars, values):
         ax.text(rect.get_x() + rect.get_width() / 2,
-                rect.get_height() + y_max * 0.015,
-                str(v), ha="center", va="bottom",
-                fontsize=9, color=TEXT, fontfamily=FONT)
+                rect.get_height() + y_max * 0.02,
+                str(v), ha="center", va="bottom", rotation=90,
+                fontsize=8, color=TEXT, fontfamily=FONT)
+    ax.set_ylim(0, y_max * 1.28)
 
-    ax.set_xlabel("Node degree", fontsize=11, color=TEXT, fontfamily=FONT)
-    ax.set_ylabel("Number of nodes", fontsize=11, color=TEXT, fontfamily=FONT)
+    ax.set_xlabel("Node degree", fontsize=9.5, color=TEXT, fontfamily=FONT)
+    ax.set_ylabel("Number of nodes", fontsize=9.5, color=TEXT, fontfamily=FONT)
     ax.set_title("CiteSeer node degree distribution",
-                 fontsize=13, fontweight="bold", color=TEXT,
-                 fontfamily=FONT, pad=12)
+                 fontsize=10.5, fontweight="bold", color=TEXT,
+                 fontfamily=FONT)
 
     # Note about the isolated bar
     iso = counts_by_bucket.get("0", 0)
     if iso > 0:
-        ax.annotate(f"{iso} isolated nodes\n(no neighbors to attend to)",
-                    xy=(0, iso), xytext=(1.6, y_max * 0.85),
-                    fontsize=9.5, color=TEXT, fontfamily=FONT,
-                    ha="left", va="top",
-                    arrowprops=dict(arrowstyle="->", color=G2, lw=1.0))
+        # No leader line: from the empty upper right it would have to cross
+        # every tall bar to reach degree 0. The dark edge marks that bar
+        # instead, and the note names it.
+        ax.text(5.6, y_max * 1.16,
+                f"Degree 0: {iso} isolated nodes,\nno neighbors to attend to",
+                fontsize=8.5, color=TEXT, fontfamily=FONT,
+                ha="left", va="top", linespacing=1.4)
 
     ax.spines[["top", "right"]].set_visible(False)
     ax.spines[["left", "bottom"]].set_color(G2)
-    ax.tick_params(axis="both", colors=TEXT, labelsize=10)
+    ax.tick_params(axis="both", colors=TEXT, labelsize=8.5)
     for lbl in ax.get_xticklabels() + ax.get_yticklabels():
         lbl.set_fontfamily(FONT)
-    ax.yaxis.grid(True, color=GRID, linewidth=0.8)
+    ax.yaxis.grid(True, color=GRID, linewidth=0.7)
     ax.set_axisbelow(True)
 
     out_path = os.path.join(HERE, "fig_07_05.png")
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=200, bbox_inches="tight", facecolor=BG)
-    plt.close(fig)
+    save_fig(fig, out_path)
     return out_path
 
 
@@ -212,48 +210,51 @@ def make_fig_07_07(stats: dict) -> str:
     accuracies = pdb["accuracies"]
     sizes      = pdb["sizes"]
 
-    fig, ax = plt.subplots(figsize=(11, 5.2), dpi=200)
-    fig.patch.set_facecolor(BG)
+    fig, ax = figure(aspect=0.54)
     ax.set_facecolor(BG)
 
-    bar_colors = [ISO_BAR if lbl == "0" else MAIN_BAR for lbl in labels]
-    bars = ax.bar(labels, accuracies, color=bar_colors, edgecolor="white",
-                  linewidth=0.8, width=0.7)
+    bars = ax.bar(labels, accuracies, color=MAIN_BAR, edgecolor=G3,
+                  linewidth=0.5, width=0.7)
+    for rect, lbl in zip(bars, labels):
+        if lbl == "0":
+            rect.set_facecolor(ISO_BAR)
+            rect.set_edgecolor(INK)
+            rect.set_linewidth(1.1)
 
     for rect, acc, sz in zip(bars, accuracies, sizes):
         x = rect.get_x() + rect.get_width() / 2
         # Accuracy label above bar
         ax.text(x, rect.get_height() + 0.015,
                 f"{acc * 100:.1f}%", ha="center", va="bottom",
-                fontsize=10, color=TEXT, fontweight="bold", fontfamily=FONT)
-        # Sample-size label inside bar (only where it fits)
+                fontsize=8.5, color=TEXT, fontweight="bold", fontfamily=FONT)
+        # Sample size inside the bar, in dark type: the fill is light enough
+        # to carry it, which white on a mid grey was not.
         if rect.get_height() > 0.12:
             ax.text(x, rect.get_height() / 2, f"n={sz}",
                     ha="center", va="center",
-                    fontsize=9, color="white", fontfamily=FONT)
+                    fontsize=8, color=INK, fontfamily=FONT)
 
     ax.set_ylim(0, 1.05)
-    ax.set_xlabel("Node degree", fontsize=11, color=TEXT, fontfamily=FONT)
-    ax.set_ylabel("Accuracy", fontsize=11, color=TEXT, fontfamily=FONT)
-    ax.set_title("GAT accuracy by node degree, CiteSeer (nodes not used for training)",
-                 fontsize=13, fontweight="bold", color=TEXT,
-                 fontfamily=FONT, pad=12)
+    ax.set_xlabel("Node degree", fontsize=9.5, color=TEXT, fontfamily=FONT)
+    ax.set_ylabel("Accuracy", fontsize=9.5, color=TEXT, fontfamily=FONT)
+    ax.set_title("GAT accuracy by node degree, CiteSeer\n"
+                 "(nodes not used for training)",
+                 fontsize=10.5, fontweight="bold", color=TEXT,
+                 fontfamily=FONT)
 
     ax.spines[["top", "right"]].set_visible(False)
     ax.spines[["left", "bottom"]].set_color(G2)
-    ax.tick_params(axis="both", colors=TEXT, labelsize=10)
+    ax.tick_params(axis="both", colors=TEXT, labelsize=8.5)
     for lbl in ax.get_xticklabels() + ax.get_yticklabels():
         lbl.set_fontfamily(FONT)
-    ax.yaxis.grid(True, color=GRID, linewidth=0.8)
+    ax.yaxis.grid(True, color=GRID, linewidth=0.7)
     ax.set_axisbelow(True)
 
     from matplotlib.ticker import PercentFormatter
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
 
     out_path = os.path.join(HERE, "fig_07_07.png")
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=200, bbox_inches="tight", facecolor=BG)
-    plt.close(fig)
+    save_fig(fig, out_path)
     return out_path
 
 
