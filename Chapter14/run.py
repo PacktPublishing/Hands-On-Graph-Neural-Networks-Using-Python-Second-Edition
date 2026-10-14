@@ -4,7 +4,7 @@ Part 1  EvolveGCN-H and EvolveGCN-O on WikiMaths (torch-geometric-temporal)
 Part 2  MPNN-LSTM on England Covid (torch-geometric-temporal)
 Part 3  TGN on the JODIE Wikipedia dataset (PyTorch Geometric)
 
-Figures produced, all from the real datasets and trained models:
+Figures produced in figures/, all from the real datasets and trained models:
     fig14_5_wikimaths_graph.png    fig14_6_wikimaths_ts.png
     fig14_7_wikimaths_pred.png     fig14_8_wikimaths_scatter.png
     fig14_9_england_graph.png      fig14_11_covid_ts.png
@@ -13,6 +13,8 @@ Figures produced, all from the real datasets and trained models:
 
 Conceptual diagrams are produced by generate_figures.py.
 """
+import os
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -22,6 +24,10 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics import average_precision_score
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIG_DIR = os.path.join(HERE, 'figures')
+os.makedirs(FIG_DIR, exist_ok=True)
 
 SEED = 0
 torch.manual_seed(SEED)
@@ -36,9 +42,10 @@ GREYS = LinearSegmentedColormap.from_list('greys_book', [G6, G0])
 
 
 def save(fig, name):
-    fig.savefig(name, dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
+    fig.savefig(os.path.join(FIG_DIR, name), dpi=200, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
     plt.close(fig)
-    print(f"Saved {name}")
+    print(f"Saved figures/{name}")
 
 
 def plot_graph(edge_index, num_nodes, title, cbar_label, name, top_k=None):

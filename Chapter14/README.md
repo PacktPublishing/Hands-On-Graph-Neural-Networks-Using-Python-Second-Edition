@@ -18,7 +18,7 @@ Downloaded on first run, into this folder:
 
 ## Figures
 
-6 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with the command above; they are drawn in grayscale, as printed.
+15 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with the command above; they are drawn in grayscale, as printed.
 
 ## Requirements
 
