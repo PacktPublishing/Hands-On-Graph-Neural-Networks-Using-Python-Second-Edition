@@ -12,7 +12,7 @@ python figures/generate_figures.py
 
 ## Figures
 
-3 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with the command above; they are drawn in grayscale, as printed.
+7 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with the command above; they are drawn in grayscale, as printed.
 
 ## Requirements
 

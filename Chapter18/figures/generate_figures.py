@@ -1,214 +1,180 @@
 """
-Chapter 18 – All figures in grayscale.
-Only the three conceptual diagrams of the chapter live here: the bipartite
-graph sketch (18.1), the collaborative-filtering example (18.5) and the
-LightGCN architecture (18.6). Every data-derived figure is produced by run.py
-from a real run, so that nothing printed in the chapter comes from invented
-numbers.
+Chapter 18 - Conceptual diagrams, in grayscale.
+
+Figure 18.5: collaborative filtering on a user-item bipartite graph.
+Figure 18.6: LightGCN architecture (light graph convolution and layer
+combination).
+
+The data-derived figures (18.1-18.4 and 18.7) are produced by run.py.
 """
+
+import os
 
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
 from matplotlib.patches import FancyBboxPatch
-import networkx as nx
-import os
 
-np.random.seed(0)
+SEED = 0
+np.random.seed(SEED)
 
-OUT  = os.path.dirname(os.path.abspath(__file__))
-os.makedirs(OUT, exist_ok=True)
+OUT = os.path.dirname(os.path.abspath(__file__))
 
-FONT = "DejaVu Sans"; BG = "white"
-G0="#111111"; G1="#333333"; G2="#555555"
-G3="#777777"; G4="#999999"; G5="#BBBBBB"; G6="#DDDDDD"
+FONT = "DejaVu Sans"
+BG = "white"
+G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
+G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
+
+plt.rcParams['font.family'] = FONT
+plt.rcParams['mathtext.fontset'] = 'dejavusans'
+
 
 def save(fig, name, dpi=200):
-    fig.savefig(f"{OUT}/{name}", dpi=dpi, bbox_inches='tight',
+    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
                 facecolor=BG, edgecolor='none')
-    plt.close(fig); print(f"  saved {name}")
+    plt.close(fig)
+    print(f"  saved {name}")
 
-def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04):
-    rect = FancyBboxPatch((x-w/2,y-h/2),w,h,
+
+def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04, ls=0.22):
+    rect = FancyBboxPatch((x - w / 2, y - h / 2), w, h,
                           boxstyle=f"round,pad=0.02,rounding_size={r}",
-                          facecolor=fill,edgecolor=G4,linewidth=1.1,zorder=3)
+                          facecolor=fill, edgecolor=G4, linewidth=1.1,
+                          zorder=3)
     ax.add_patch(rect)
-    for li,line in enumerate(label.split('\n')):
-        off=0.11*(li-label.count('\n')/2)
-        ax.text(x,y-off,line,ha='center',va='center',fontsize=fs,
-                color=fc,fontweight='bold',fontfamily=FONT,zorder=4)
-
-def arr(ax,x1,y1,x2,y2,color=G2,lw=1.4):
-    ax.annotate("",xy=(x2,y2),xytext=(x1,y1),
-                arrowprops=dict(arrowstyle="-|>",color=color,
-                                lw=lw,mutation_scale=12),zorder=2)
+    lines = label.split('\n')
+    for li, line in enumerate(lines):
+        off = ls * (li - (len(lines) - 1) / 2)
+        ax.text(x, y - off, line, ha='center', va='center', fontsize=fs,
+                color=fc, fontweight='bold', zorder=4)
 
 
-# ── Fig 18.1: Book-Crossing bipartite graph ───────────────────────────────────
-print("Figure 18.1 …")
-
-rng = np.random.default_rng(42)
-N_USERS = 60; N_BOOKS = 80
-N_EDGES = 200
-
-G_bx = nx.Graph()
-users_nodes = [f"U{i}" for i in range(N_USERS)]
-books_nodes = [f"B{i}" for i in range(N_BOOKS)]
-G_bx.add_nodes_from(users_nodes, bipartite=0)
-G_bx.add_nodes_from(books_nodes, bipartite=1)
-
-# Power-law degree distribution — some books are very popular
-book_probs = np.array([(N_BOOKS-i)**1.5 for i in range(N_BOOKS)])
-book_probs = book_probs / book_probs.sum()
-for _ in range(N_EDGES):
-    u = f"U{rng.integers(0, N_USERS)}"
-    b = f"B{rng.choice(N_BOOKS, p=book_probs)}"
-    G_bx.add_edge(u, b)
-
-pos_bx = {}
-for i, u in enumerate(users_nodes):
-    pos_bx[u] = (0, i * (10/N_USERS))
-for i, b in enumerate(books_nodes):
-    pos_bx[b] = (2, i * (10/N_BOOKS))
-
-deg_bx = dict(G_bx.degree())
-u_sizes = [10 + deg_bx.get(u,0)*15 for u in users_nodes]
-b_sizes = [10 + deg_bx.get(b,0)*15 for b in books_nodes]
-
-fig, ax = plt.subplots(figsize=(9, 8))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-nx.draw_networkx_edges(G_bx, pos_bx, ax=ax, alpha=0.12,
-                       edge_color=G3, width=0.5)
-nx.draw_networkx_nodes(G_bx, pos_bx, ax=ax,
-                       nodelist=users_nodes, node_color=G1,
-                       node_size=u_sizes, edgecolors='white', linewidths=0.4)
-nx.draw_networkx_nodes(G_bx, pos_bx, ax=ax,
-                       nodelist=books_nodes, node_color=G4,
-                       node_size=b_sizes, edgecolors='white', linewidths=0.4)
-
-handles = [mpatches.Patch(color=G1, label='Users (darker = more ratings)'),
-           mpatches.Patch(color=G4, label='Books (lighter = more ratings)')]
-ax.legend(handles=handles, loc='lower right', fontsize=9,
-          framealpha=0.95, edgecolor=G5)
-ax.text(-0.15, 5.0, "Users", ha='center', fontsize=11,
-        fontweight='bold', color=G0, fontfamily=FONT, rotation=90)
-ax.text(2.15, 5.0, "Books", ha='center', fontsize=11,
-        fontweight='bold', color=G0, fontfamily=FONT, rotation=90)
-ax.set_title("Book-Crossing dataset — bipartite graph (illustrative subset)\n"
-             "Node size proportional to number of connections",
-             fontsize=11, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-ax.text(0.02, 0.02, "Illustrative — run run.py locally for real graph",
-        transform=ax.transAxes, fontsize=7.5, color=G3, fontstyle='italic')
-ax.set_xlim(-0.4, 2.5)
-fig.tight_layout()
-save(fig, "fig18_1_bookcrossing_graph.png")
+def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
+    ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                arrowprops=dict(arrowstyle="-|>", color=color,
+                                lw=lw, mutation_scale=12), zorder=2)
 
 
-# ── Fig 18.5: Bipartite graph example (collaborative filtering) ───────────────
-print("Figure 18.5 …")
+# Figure 18.5 - Collaborative filtering on a bipartite graph
+print("Figure 18.5 ...")
 
 fig, ax = plt.subplots(figsize=(10, 5.5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 10); ax.set_ylim(0, 5.5)
+fig.patch.set_facecolor(BG)
+ax.set_facecolor(BG)
+ax.axis('off')
+ax.set_xlim(0, 10)
+ax.set_ylim(0.4, 5.5)
 
-# Users left, items right
-users_cf = [(1.5, 4.2, "User 1"), (1.5, 2.7, "User 2"), (1.5, 1.2, "User 3")]
-items_cf = [(8.5, 4.8, "Item A"), (8.5, 3.6, "Item B"),
-            (8.5, 2.4, "Item C"), (8.5, 1.2, "Item D")]
+R = 0.42
+users = {"1": (1.5, 4.2), "2": (1.5, 2.7), "3": (1.5, 1.2)}
+items = {"A": (8.5, 4.8), "B": (8.5, 3.6), "C": (8.5, 2.4), "D": (8.5, 1.2)}
 
-for x, y, lbl in users_cf:
-    circ = plt.Circle((x,y), 0.42, color=G1, zorder=3)
-    ax.add_patch(circ)
-    ax.text(x, y, lbl.split()[1], ha='center', va='center',
-            fontsize=10, color='white', fontweight='bold', fontfamily=FONT, zorder=4)
-    ax.text(x-0.7, y, lbl, ha='right', fontsize=10, color=G0, fontfamily=FONT)
+for name, (x, y) in users.items():
+    ax.add_patch(plt.Circle((x, y), R, color=G1, zorder=3))
+    ax.text(x, y, name, ha='center', va='center', fontsize=10,
+            color='white', fontweight='bold', zorder=4)
+    ax.text(x - 0.7, y, f"User {name}", ha='right', va='center',
+            fontsize=10, color=G0)
 
-for x, y, lbl in items_cf:
-    circ = plt.Circle((x,y), 0.42, color=G3, zorder=3)
-    ax.add_patch(circ)
-    ax.text(x, y, lbl.split()[1], ha='center', va='center',
-            fontsize=10, color='white', fontweight='bold', fontfamily=FONT, zorder=4)
-    ax.text(x+0.7, y, lbl, ha='left', fontsize=10, color=G0, fontfamily=FONT)
+for name, (x, y) in items.items():
+    ax.add_patch(plt.Circle((x, y), R, color=G3, zorder=3))
+    ax.text(x, y, name, ha='center', va='center', fontsize=10,
+            color='white', fontweight='bold', zorder=4)
+    ax.text(x + 0.7, y, f"Item {name}", ha='left', va='center',
+            fontsize=10, color=G0)
 
-# Known interactions (solid)
-edges_known = [(1.5,4.2,8.5,4.8),(1.5,4.2,8.5,3.6),  # User1-A, User1-B
-               (1.5,2.7,8.5,4.8),(1.5,2.7,8.5,2.4),  # User2-A, User2-C → User2 has A,C? no
-               (1.5,1.2,8.5,3.6),(1.5,1.2,8.5,1.2)]  # User3-B, User3-D
-for x1,y1,x2,y2 in edges_known:
-    ax.plot([x1+0.42,x2-0.42],[y1,y2], color=G0, linewidth=2.0, zorder=2)
+known = [("1", "A"), ("1", "B"), ("2", "A"), ("2", "C"),
+         ("3", "B"), ("3", "D")]
+for u, i in known:
+    (x1, y1), (x2, y2) = users[u], items[i]
+    ax.plot([x1 + R, x2 - R], [y1, y2], color=G0, linewidth=2.0, zorder=2)
 
-# Recommendation (dashed)
-ax.plot([1.5+0.42, 8.5-0.42],[2.7, 3.6], color=G2, linewidth=2.2,
+(x1, y1), (x2, y2) = users["2"], items["B"]
+ax.plot([x1 + R, x2 - R], [y1, y2], color=G2, linewidth=2.2,
         linestyle='--', zorder=2)
-ax.text(5.0, 3.35, "Recommend\n(collaborative\nfiltering)",
-        ha='center', fontsize=9, color=G2, fontfamily=FONT, fontstyle='italic',
-        bbox=dict(facecolor='white', edgecolor=G4, boxstyle='round,pad=0.3'))
 
 handles = [
-    plt.Line2D([0],[0], color=G0, linewidth=2.0, label='Known interaction'),
-    plt.Line2D([0],[0], color=G2, linewidth=2.2, linestyle='--', label='Recommendation'),
+    Line2D([0], [0], color=G0, linewidth=2.0, label='Known interaction'),
+    Line2D([0], [0], color=G2, linewidth=2.2, linestyle='--',
+           label='Recommendation'),
 ]
-ax.legend(handles=handles, loc='lower left', fontsize=9,
-          framealpha=0.95, edgecolor=G5)
+ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.08),
+          ncol=2, fontsize=9, framealpha=0.95, edgecolor=G5)
 ax.set_title("Bipartite graph for collaborative filtering\n"
-             "User 1 and User 3 both liked Item B — so we recommend Item B to User 2",
-             fontsize=11, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
+             "User 2 shares Item A with User 1, who also liked Item B",
+             fontsize=11, fontweight='bold', color=G0, pad=10)
 fig.tight_layout()
 save(fig, "fig18_5_bipartite_cf.png")
 
 
-# ── Fig 18.6: LightGCN architecture diagram ───────────────────────────────────
-print("Figure 18.6 …")
+# Figure 18.6 - LightGCN architecture
+print("Figure 18.6 ...")
 
-fig, ax = plt.subplots(figsize=(13, 5.5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 13); ax.set_ylim(0, 5.5)
+fig, ax = plt.subplots(figsize=(14, 5.5))
+fig.patch.set_facecolor(BG)
+ax.set_facecolor(BG)
+ax.axis('off')
+ax.set_xlim(0, 15.2)
+ax.set_ylim(0.3, 5.6)
 
-# Initial embeddings
-rbox(ax, 1.2, 3.8, 1.8, 0.7, "User emb.\ne_u^(0)", fill=G1, fc='white', fs=9)
-rbox(ax, 1.2, 2.5, 1.8, 0.7, "Item emb.\ne_i^(0)", fill=G3, fc='white', fs=9)
+Y = 3.15
+BUS = 1.1
+LW, LH = 1.2, 1.4
+layers_x = [3.5, 5.2, 6.9, 8.6]
+COMB_X, COMB_W, COMB_H = 10.5, 1.6, 1.5
+FIN_X = 12.6
 
-# LGConv layers
-for l, x in enumerate([3.3, 4.9, 6.5, 8.1]):
-    lbl = f"LGConv\nlayer {l+1}"
-    rbox(ax, x, 3.15, 1.35, 1.5, lbl, fill=G2, fc='white', fs=8.5)
-    arr(ax, x-0.55, 3.15, x-0.75+0.55+1.0, 3.15 if l>0 else 3.15, color=G2)
+rbox(ax, 1.2, 3.9, 1.8, 0.75, "User emb.\n$e_u^{(0)}$", fill=G1, fs=9)
+rbox(ax, 1.2, 2.4, 1.8, 0.75, "Item emb.\n$e_i^{(0)}$", fill=G3, fs=9)
 
-arr(ax, 2.1, 3.8, 2.6, 3.5, color=G1)
-arr(ax, 2.1, 2.5, 2.6, 2.8, color=G3)
-arr(ax, 8.8, 3.15, 9.0, 3.15, color=G2)
+JX = 2.55
+ax.plot([2.1, JX], [3.9, Y], color=G1, linewidth=1.4, zorder=2)
+ax.plot([2.1, JX], [2.4, Y], color=G3, linewidth=1.4, zorder=2)
+ax.plot([JX], [Y], marker='o', color=G2, markersize=5, zorder=3)
+arr(ax, JX, Y, layers_x[0] - LW / 2, Y, color=G2)
 
-# Layer combination
-rbox(ax, 9.8, 3.15, 1.6, 1.5,
-     "Layer\ncombi-\nnation\n(mean)", fill=G0, fc='white', fs=9)
-arr(ax, 10.6, 3.15, 11.3, 3.15, color=G0, lw=1.6)
+for k, x in enumerate(layers_x):
+    rbox(ax, x, Y, LW, LH, f"LGConv\nlayer {k + 1}", fill=G2, fs=8.5)
+    if k > 0:
+        arr(ax, layers_x[k - 1] + LW / 2, Y, x - LW / 2, Y, color=G2)
 
-# Final embeddings + prediction
-rbox(ax, 11.8, 4.0, 1.2, 0.6, "e_u^*", fill=G1, fc='white', fs=10)
-rbox(ax, 11.8, 2.3, 1.2, 0.6, "e_i^*", fill=G3, fc='white', fs=10)
-ax.text(10.6, 4.0, "", ha='center')
-arr(ax, 10.6, 3.6, 11.2, 4.0, color=G1)
-arr(ax, 10.6, 2.7, 11.2, 2.3, color=G3)
-arr(ax, 12.4, 4.0, 12.9, 3.4, color=G0)
-arr(ax, 12.4, 2.3, 12.9, 2.9, color=G0)
-ax.text(13.0, 3.15, "ŷ =\ne_u·e_i",
-        ha='left', va='center', fontsize=10,
-        fontweight='bold', color=G0, fontfamily=FONT)
+taps = [(JX, Y)] + [(x, Y - LH / 2) for x in layers_x]
+for x, y in taps:
+    ax.plot([x, x], [y, BUS], color=G4, linewidth=1.2, zorder=1)
+ax.plot([JX, COMB_X], [BUS, BUS], color=G4, linewidth=1.2, zorder=1)
+arr(ax, COMB_X, BUS, COMB_X, Y - COMB_H / 2, color=G4, lw=1.2)
+ax.text((JX + layers_x[-1]) / 2, BUS - 0.35,
+        r"$e^{(0)},\ e^{(1)},\ e^{(2)},\ e^{(3)},\ e^{(4)}$",
+        ha='center', va='center', fontsize=10, color=G2)
 
-# Labels
-ax.text(1.2, 5.0, "Input\nembeddings", ha='center', fontsize=8.5,
-        color=G3, fontfamily=FONT, fontstyle='italic')
-ax.text(5.7, 5.0, "Light Graph Convolution (no feature transform, no activation)",
-        ha='center', fontsize=8.5, color=G3, fontfamily=FONT, fontstyle='italic')
-ax.text(9.8, 5.0, "Weighted\nsum", ha='center', fontsize=8.5,
-        color=G3, fontfamily=FONT, fontstyle='italic')
+rbox(ax, COMB_X, Y, COMB_W, COMB_H, "Layer\ncombination\n(mean)",
+     fill=G0, fs=9)
 
-ax.set_title("LightGCN architecture — light graph convolution + layer combination",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
+rbox(ax, FIN_X, 4.1, 1.2, 0.65, "$e_u^{*}$", fill=G1, fs=11)
+rbox(ax, FIN_X, 2.2, 1.2, 0.65, "$e_i^{*}$", fill=G3, fs=11)
+arr(ax, COMB_X + COMB_W / 2, Y + 0.35, FIN_X - 0.6, 4.1, color=G1)
+arr(ax, COMB_X + COMB_W / 2, Y - 0.35, FIN_X - 0.6, 2.2, color=G3)
+arr(ax, FIN_X + 0.6, 4.1, 13.6, Y + 0.25, color=G0)
+arr(ax, FIN_X + 0.6, 2.2, 13.6, Y - 0.25, color=G0)
+ax.text(13.7, Y, r"$\hat{y}_{ui} = e_u^{*} \cdot e_i^{*}$",
+        ha='left', va='center', fontsize=12, color=G0)
+
+ax.text(1.2, 5.0, "Input embeddings", ha='center', fontsize=9,
+        color=G3, fontstyle='italic')
+ax.text((layers_x[0] + layers_x[-1]) / 2, 5.0,
+        "Light graph convolution (no feature transformation, "
+        "no activation)", ha='center', fontsize=9, color=G3,
+        fontstyle='italic')
+ax.text(COMB_X, 5.0, r"Weighted sum, $\alpha_k = 1/(K+1)$",
+        ha='center', fontsize=9, color=G3, fontstyle='italic')
+ax.text(FIN_X + 0.9, 5.0, "Final embeddings and score", ha='center',
+        fontsize=9, color=G3, fontstyle='italic')
+
+ax.set_title("LightGCN architecture: light graph convolution and layer "
+             "combination", fontsize=12, fontweight='bold', color=G0, pad=10)
 fig.tight_layout()
 save(fig, "fig18_6_lightgcn_arch.png")
 
-
-print(f"\nDone: 3 diagrams saved to {OUT}")
+print(f"\nDone: 2 diagrams saved to {OUT}")
