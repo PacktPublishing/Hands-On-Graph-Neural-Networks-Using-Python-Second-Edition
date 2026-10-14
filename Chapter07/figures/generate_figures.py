@@ -25,7 +25,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 '..', '..', 'tools'))
 from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
-                       INK_SOFT, DPI, G0, G1, G2, G3, G4, G5, G6)
+                       INK_SOFT, FILLS, DPI, G0, G1, G2, G3, G4, G5, G6)
 
 plt = apply()
 
@@ -85,6 +85,66 @@ def make_fig_07_01(alpha: float = 0.2) -> str:
     save_fig(fig, out_path)
     return out_path
 
+
+
+# ── Figure 7.2 — Multi-head attention ─────────────────────────────────
+def make_fig_07_02(heads: int = 3) -> str:
+    """K heads in parallel, their outputs concatenated or averaged.
+
+    The original ran five columns across, which at 5.5 inches leaves each one
+    an inch. The per-head output h_k becomes the label on the arrow into the
+    aggregation instead of a box of its own, which buys the remaining boxes
+    the width their labels need.
+    """
+    from matplotlib.patches import Rectangle
+
+    fig, ax = figure(aspect=0.58)
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    ax.set_facecolor(BG)
+
+    def box(x, y, w, h, label, fill, fs=7.5):
+        ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h, facecolor=fill,
+                               edgecolor=G3, linewidth=0.8, zorder=3))
+        ax.text(x, y, label, ha="center", va="center", fontsize=fs, color=INK,
+                fontweight="bold", fontfamily=FONT, linespacing=1.5, zorder=4)
+
+    def arrow(x1, y1, x2, y2, lw=1.1):
+        ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
+                    arrowprops=dict(arrowstyle="-|>", color=G3, lw=lw,
+                                    mutation_scale=8), zorder=2)
+
+    X_IN, X_W, X_ATT, X_AGG = 0.085, 0.33, 0.60, 0.875
+    BW, BH = 0.155, 0.17
+    rows = [0.84, 0.52, 0.20][:heads]
+
+    box(X_IN, 0.52, 0.135, 0.20, "Node\nfeatures\nX", FILLS[0])
+    for k, y in enumerate(rows, start=1):
+        box(X_W, y, BW, BH, f"W{k}\nLinear", FILLS[1])
+        box(X_ATT, y, 0.21, BH, f"Att {k}\nLeakyReLU\n+ softmax", FILLS[1])
+        arrow(X_IN + 0.068, 0.52, X_W - BW / 2, y)
+        arrow(X_W + BW / 2, y, X_ATT - 0.105, y)
+        # h_k rides on the arrow into the aggregation, instead of a box.
+        arrow(X_ATT + 0.105, y, X_AGG - 0.075, 0.52)
+        ax.text((X_ATT + 0.105 + X_AGG - 0.075) / 2,
+                y + (0.52 - y) * 0.28 + 0.028, f"h{k}", ha="center",
+                va="bottom", fontsize=8, color=INK_SOFT, fontfamily=FONT,
+                fontstyle="italic",
+                bbox=dict(facecolor=BG, edgecolor="none", pad=0.6), zorder=5)
+
+    box(X_AGG, 0.52, 0.15, 0.30, "Concat\nor\naverage", FILLS[2])
+    # The output hangs below the aggregation: to its right there is no column
+    # left at this width.
+    arrow(X_AGG, 0.37, X_AGG, 0.22)
+    box(X_AGG, 0.13, 0.19, 0.16, "Output\nembedding H", FILLS[1])
+
+    ax.text(0.5, 0.985, f"Multi-head attention: {heads} heads in parallel, "
+                        "concatenated or averaged",
+            ha="center", va="top", fontsize=9.5, fontweight="bold", color=INK,
+            fontfamily=FONT)
+
+    out_path = os.path.join(HERE, "fig_07_02.png")
+    save_fig(fig, out_path)
+    return out_path
 
 
 # ── Figure 7.4 — CiteSeer sampled subgraph ──────────────────────────────────
@@ -295,11 +355,13 @@ def make_fig_07_07(stats: dict) -> str:
 
 def main() -> None:
     p1 = make_fig_07_01()
+    p2 = make_fig_07_02()
     p4 = make_fig_07_04()
     stats = load_stats()
     p5 = make_fig_07_05(stats)
     p7 = make_fig_07_07(stats)
     print(f"Wrote {p1}")
+    print(f"Wrote {p2}")
     print(f"Wrote {p4}")
     print(f"Wrote {p5}")
     print(f"Wrote {p7}")
