@@ -1,46 +1,33 @@
 """
-Chapter 17 – Detecting Anomalies Using Heterogeneous GNNs
-Hands-On Graph Neural Networks Using Python (2nd Edition)
+Chapter 17: Detecting Anomalies Using Heterogeneous GNNs
 
-Requirements:
-    pip install torch torch-geometric pandas scikit-learn numpy matplotlib
+Downloads CIDDS-001, preprocesses the OpenStack week-1 traffic, builds
+heterogeneous host/flow subgraphs, trains a HeteroConv GNN for five-class
+flow classification, compares it with an MLP trained on the same flow
+features, and saves:
+    fig17_2_class_distribution.png
+    fig17_3_distributions_before.png
+    fig17_4_distributions_after.png
+    fig17_6_misclassified.png
+    fig17_7_confusion_matrix.png
 
-Fixes versus the first edition (ex Chapter 16):
-  - n_batches -> n_subgraphs in create_dataloader (NameError fix)
-  - df['Bytes'].loc[m_index] -> df.loc[m_index, 'Bytes'] (pandas >= 2.0)
-  - one_hot_flags takes a single flag string instead of an array
-  - GitHub URL updated to Chapter17
-  - Confusion matrix code included (was GitHub-only in first edition)
-  - All pie chart colors converted to grayscale
-
-Graph construction fixes (technical review, Mursel):
-  1. HOST FEATURES. Both editions assigned batch['host'].x =
-     subgraph[features_host], i.e. one row per FLOW (1024 rows), while host
-     node indices come from ip_map over UNIQUE IPs (~150 on CIDDS-001).
-     The two numberings are unrelated, so host node i received the features
-     of flow i, and roughly 870 feature rows were never referenced by any
-     edge. Host features are now built per unique host, from that host's own
-     address, and are 16-dimensional rather than 32: ipsrc_* + ipdst_*
-     describes an ordered pair of endpoints, which is a property of a flow,
-     not of a host.
-  2. DIRECTION. Source and destination host indices were interleaved into a
-     single ('host', 'to', 'flow') relation, so the model could not tell who
-     initiated a connection. They are now separate relations, which is the
-     signal that distinguishes portScan and dos.
-  3. edge_index tensors are int64, as PyG expects.
-
-Two additions, both controlled by the flags below:
-  - RUN_MLP_BASELINE trains an MLP on flow features alone, on the same
-    splits for the same number of epochs. It answers the question the
-    chapter currently cannot: how much does the graph actually contribute?
-  - USE_CLASS_WEIGHTS enables class-weighted cross-entropy, which the
-    chapter mentions without implementing.
-
-NOTE: this file has not been executed. Run it before trusting any number.
+Run: python run.py
 """
+
+import os
+import platform
+import resource
+import ssl
+import sys
+import time
+from io import BytesIO
+from urllib.request import urlopen
+from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import torch
 from torch import nn
@@ -53,100 +40,103 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.data import HeteroData
 from torch_geometric.nn import Linear, HeteroConv, SAGEConv
 
-torch.manual_seed(0); np.random.seed(0)
+torch.manual_seed(0)
+np.random.seed(0)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
+print(f'Using device: {device}')
 
-RUN_MLP_BASELINE  = True
-USE_CLASS_WEIGHTS = False
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIG_DIR = os.path.join(HERE, 'figures')
+os.makedirs(FIG_DIR, exist_ok=True)
+
+FONT = "DejaVu Sans"
+plt.rcParams['font.family'] = FONT
+G0, G1, G2, G3, G4, G5 = "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB"
+
+
+def save(fig, name, dpi=200):
+    fig.savefig(os.path.join(FIG_DIR, name), dpi=dpi, bbox_inches='tight',
+                facecolor='white')
+    plt.close(fig)
+    print(f'Saved figures/{name}')
+
+
+def peak_memory_mb():
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return rss / 2**20 if sys.platform == 'darwin' else rss / 2**10
 
 
 # =============================================================================
-# PART 1 - Download and explore CIDDS-001
+# PART 1: Download and explore CIDDS-001
 # =============================================================================
-
-print("\n" + "=" * 60)
-print("PART 1 - Exploring CIDDS-001")
-print("=" * 60)
-
-import os
-import ssl
-from io import BytesIO
-from urllib.request import urlopen
-from zipfile import ZipFile
 
 url = 'https://www.hs-coburg.de/wp-content/uploads/2024/11/CIDDS-001.zip'
-
-# The dataset is large, so skip the download when it is already on disk.
-if os.path.isdir('CIDDS-001'):
-    print("CIDDS-001 already extracted, skipping download.")
-else:
-    # Python on macOS does not use the system trust store, so urlopen fails
-    # with CERTIFICATE_VERIFY_FAILED unless it is given a CA bundle. certifi
-    # ships one; falling back to the default context covers the platforms
-    # where that is unnecessary.
+if not os.path.isdir('CIDDS-001'):
     try:
         import certifi
         context = ssl.create_default_context(cafile=certifi.where())
     except ImportError:
         context = ssl.create_default_context()
-
-    print(f"Downloading {url} ...")
+    print(f'Downloading {url} …')
     with urlopen(url, context=context) as zurl:
         with ZipFile(BytesIO(zurl.read())) as zfile:
             zfile.extractall('.')
 
-df = pd.read_csv(
-    'CIDDS-001/traffic/OpenStack/CIDDS-001-internal-week1.csv')
-print(f"Dataset: {len(df):,} rows, {len(df.columns)} columns")
+df = pd.read_csv('CIDDS-001/traffic/OpenStack/CIDDS-001-internal-week1.csv')
+print(f'\nRows in CIDDS-001-internal-week1.csv: {len(df):,}')
+print(f'Columns: {list(df.columns)}')
+print(f"Time span: {df['Date first seen'].min()} to {df['Date first seen'].max()}")
+
+addresses = pd.concat([df['Src IP Addr'], df['Dst IP Addr']]).astype(str)
+internal = addresses.str.startswith('192.168.')
+print(f'\nAddress fields starting with 192.168.: {internal.mean() * 100:.2f}%')
+print('Most frequent addresses that do not start with 192.168.:')
+print(addresses[~internal].value_counts().head(15).to_string())
+print(f'Distinct addresses that do not start with 192.168.: '
+      f'{addresses[~internal].nunique():,}')
 
 df = df.drop(columns=['Src Pt', 'Dst Pt', 'Flows', 'Tos',
-                       'class', 'attackID', 'attackDescription'])
+                      'class', 'attackID', 'attackDescription'])
 df['attackType']      = df['attackType'].replace('---', 'benign')
 df['Date first seen'] = pd.to_datetime(df['Date first seen'])
 
-count_labels = df['attackType'].value_counts() / len(df) * 100
-fig, ax = plt.subplots(figsize=(7, 6), dpi=150)
-wedges, texts, autotexts = ax.pie(
-    count_labels[:3].values,
-    labels=count_labels.index[:3],
-    colors=['#BBBBBB', '#555555', '#999999'],
-    autopct='%.0f%%',
-    wedgeprops=dict(edgecolor='white', linewidth=1.5))
+print('\nClass distribution:')
+counts = df['attackType'].value_counts()
+for name, n in counts.items():
+    print(f'  {name:<11} {n:>10,}  {n / len(df) * 100:8.4f}%')
+
+count_labels = counts / len(df) * 100
+fig, ax = plt.subplots(figsize=(7, 6))
+_, _, autotexts = ax.pie(count_labels[:3].values, labels=count_labels.index[:3],
+                         colors=[G5, G2, G4], autopct='%.0f%%',
+                         wedgeprops=dict(edgecolor='white', linewidth=1.5))
 for at in autotexts:
     at.set_color('white')
-ax.set_title('Class distribution (top 3)')
-plt.tight_layout()
-plt.savefig('class_dist.png', dpi=150, bbox_inches='tight')
-plt.close()
-print("Saved class_dist.png")
+ax.set_title('Class distribution (three largest classes)', color=G0)
+save(fig, 'fig17_2_class_distribution.png')
 
-# Distributions of the three numerical features, before any scaling.
-# The ranges are clipped on purpose: without them the long tails stretch
-# each axis so far that every value collapses into the first bar.
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5), dpi=150)
-df['Duration'].hist(ax=ax1, bins=50, range=(0, 2), color='#555555')
-ax1.set_xlabel('Duration'); ax1.set_ylabel('Count')
-df['Packets'].hist(ax=ax2, bins=20, range=(0, 20), color='#555555')
-ax2.set_xlabel('Packets')
-pd.to_numeric(df['Bytes'], errors='coerce').hist(ax=ax3, bins=50,
-                                                  range=(0, 5000),
-                                                  color='#555555')
-ax3.set_xlabel('Bytes')
-fig.suptitle('Distributions before PowerTransformer')
-plt.tight_layout()
-plt.savefig('dist_before.png', dpi=150, bbox_inches='tight')
-plt.close()
-print("Saved dist_before.png")
+bytes_raw = pd.to_numeric(df['Bytes'], errors='coerce')
+print('\nRaw numerical features:')
+print(pd.DataFrame({'Duration': df['Duration'], 'Packets': df['Packets'],
+                    'Bytes': bytes_raw}).describe(
+                        percentiles=[0.5, 0.9, 0.99]).to_string())
+print(f"Flows with Duration == 0: {(df['Duration'] == 0).mean() * 100:.2f}%")
+
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5))
+df['Duration'].hist(ax=ax1, bins=50, range=(0, 2), color=G2)
+ax1.set_xlabel('Duration'); ax1.set_ylabel('Number of flows')
+df['Packets'].hist(ax=ax2, bins=20, range=(0, 20), color=G2)
+ax2.set_xlabel('Packets per flow')
+bytes_raw.hist(ax=ax3, bins=50, range=(0, 5000), color=G2)
+ax3.set_xlabel('Bytes per flow')
+fig.suptitle('Distributions before PowerTransformer', color=G0)
+fig.tight_layout()
+save(fig, 'fig17_3_distributions_before.png')
 
 
 # =============================================================================
-# PART 2 - Preprocessing
+# PART 2: Preprocessing
 # =============================================================================
-
-print("\n" + "=" * 60)
-print("PART 2 - Preprocessing")
-print("=" * 60)
 
 df['weekday'] = df['Date first seen'].dt.weekday
 df = pd.get_dummies(df, columns=['weekday']).rename(columns={
@@ -163,7 +153,6 @@ df['daytime'] = (
 
 
 def one_hot_flags(flags):
-    """One TCP flag string in, five binary features out."""
     flag_names = ['ACK', 'PSH', 'RST', 'SYN', 'FIN']
     return [1 if f in str(flags) else 0 for f in flag_names]
 
@@ -192,6 +181,7 @@ df = df.join(binary_encode_ip(df, 'Src IP Addr', 'ipsrc'))
 df = df.join(binary_encode_ip(df, 'Dst IP Addr', 'ipdst'))
 
 m_index = df[pd.to_numeric(df['Bytes'], errors='coerce').isnull()].index
+print(f'\nBytes values written with the m suffix: {len(m_index):,}')
 df.loc[m_index, 'Bytes'] = df.loc[m_index, 'Bytes'].apply(
     lambda x: 1e6 * float(x.strip().split()[0]))
 df['Bytes'] = pd.to_numeric(df['Bytes'], errors='coerce', downcast='integer')
@@ -201,57 +191,46 @@ df = pd.get_dummies(df, prefix='', prefix_sep='',
 labels = ['benign', 'bruteForce', 'dos', 'pingScan', 'portScan']
 
 df_train, df_test = train_test_split(df, random_state=0, test_size=0.2,
-                                      stratify=df[labels])
+                                     stratify=df[labels])
 df_val, df_test   = train_test_split(df_test, random_state=0, test_size=0.5,
-                                      stratify=df_test[labels])
-print(f"Train: {len(df_train):,}  Val: {len(df_val):,}  Test: {len(df_test):,}")
+                                     stratify=df_test[labels])
+print(f'Train: {len(df_train):,}  Val: {len(df_val):,}  Test: {len(df_test):,}')
 
 scaler = PowerTransformer()
-for split in [df_train, df_val, df_test]:
-    cols = ['Duration', 'Packets', 'Bytes']
-    if split is df_train:
-        split[cols] = scaler.fit_transform(split[cols])
-    else:
-        split[cols] = scaler.transform(split[cols])
+cols = ['Duration', 'Packets', 'Bytes']
+df_train[cols] = scaler.fit_transform(df_train[cols])
+df_val[cols]   = scaler.transform(df_val[cols])
+df_test[cols]  = scaler.transform(df_test[cols])
+print('\nTransformed features on the training set:')
+print(df_train[cols].describe().to_string())
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5), dpi=150)
-df_train['Duration'].hist(ax=ax1, bins=50, color='#555555')
-ax1.set_xlabel('Duration (transformed)'); ax1.set_ylabel('Count')
-df_train['Packets'].hist(ax=ax2, bins=50, color='#555555')
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5))
+df_train['Duration'].hist(ax=ax1, bins=50, color=G2)
+ax1.set_xlabel('Duration (transformed)'); ax1.set_ylabel('Number of flows')
+df_train['Packets'].hist(ax=ax2, bins=50, color=G2)
 ax2.set_xlabel('Packets (transformed)')
-df_train['Bytes'].hist(ax=ax3, bins=50, color='#555555')
+df_train['Bytes'].hist(ax=ax3, bins=50, color=G2)
 ax3.set_xlabel('Bytes (transformed)')
-fig.suptitle('Distributions after PowerTransformer')
-plt.tight_layout()
-plt.savefig('dist_after.png', dpi=150, bbox_inches='tight')
-plt.close()
-print("Saved dist_after.png")
+fig.suptitle('Distributions after PowerTransformer', color=G0)
+fig.tight_layout()
+save(fig, 'fig17_4_distributions_after.png')
 
 
 # =============================================================================
-# PART 3 - Build heterogeneous graph dataset
+# PART 3: Heterogeneous graph dataset
 # =============================================================================
-
-print("\n" + "=" * 60)
-print("PART 3 - Building heterogeneous graph")
-print("=" * 60)
 
 BATCH_SIZE = 16
 
-features_flow_candidates = [
-    'daytime', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
-    'Duration', 'Packets', 'Bytes', 'ACK', 'PSH', 'RST', 'SYN', 'FIN',
-    'ICMP ', 'IGMP ', 'TCP  ', 'UDP  '
-]
-features_flow = [f for f in features_flow_candidates if f in df.columns]
+features_flow = [f for f in ['daytime', 'Monday', 'Tuesday', 'Wednesday',
+                             'Thursday', 'Friday', 'Duration', 'Packets',
+                             'Bytes', 'ACK', 'PSH', 'RST', 'SYN', 'FIN',
+                             'ICMP ', 'IGMP ', 'TCP  ', 'UDP  ']
+                 if f in df.columns]
+print(f'\nFlow features ({len(features_flow)}): {features_flow}')
 
 
 def ip_to_bits(ip):
-    """
-    Sixteen binary features from the last two octets of one address.
-    This is a property of a single host, unlike the ipsrc_*/ipdst_* columns,
-    which together describe the two endpoints of a flow.
-    """
     parts = str(ip).split('.')
     try:
         third, fourth = int(parts[2]), int(parts[3])
@@ -262,10 +241,6 @@ def ip_to_bits(ip):
 
 
 def get_connections(ip_map, src_ip, dst_ip):
-    """
-    Two directed relations instead of one. Keeping source and destination
-    apart is what lets the model see which host initiated a flow.
-    """
     flow_idx = np.arange(len(src_ip))
     s = np.array([ip_map[ip] for ip in src_ip])
     d = np.array([ip_map[ip] for ip in dst_ip])
@@ -287,7 +262,6 @@ def create_dataloader(df, subgraph_size=1024, shuffle=False):
         sends, receives = get_connections(ip_map, src_ip, dst_ip)
 
         batch = HeteroData()
-        # One row per unique host, built from that host's own address.
         batch['host'].x = torch.tensor(
             [ip_to_bits(ip) for ip in hosts], dtype=torch.float)
         batch['flow'].x = torch.tensor(
@@ -304,26 +278,26 @@ def create_dataloader(df, subgraph_size=1024, shuffle=False):
     return DataLoader(data, batch_size=BATCH_SIZE, shuffle=shuffle)
 
 
+start = time.perf_counter()
 train_loader = create_dataloader(df_train, shuffle=True)
 val_loader   = create_dataloader(df_val)
 test_loader  = create_dataloader(df_test)
+graph_time = time.perf_counter() - start
 
-sample = next(iter(train_loader))
-print("DataLoaders created.")
-print(f"  host nodes in first batch: {sample['host'].num_nodes}")
-print(f"  flow nodes in first batch: {sample['flow'].num_nodes}")
-print(f"  host feature dim:          {sample['host'].x.size(1)}")
-print(f"  flow feature dim:          {sample['flow'].x.size(1)}")
+for name, loader, split in (('Train', train_loader, df_train),
+                            ('Val', val_loader, df_val),
+                            ('Test', test_loader, df_test)):
+    graphs = loader.dataset
+    hosts = np.array([g['host'].num_nodes for g in graphs])
+    print(f'{name:<5} subgraphs: {len(graphs):>5,} | flows used: '
+          f'{len(graphs) * 1024:>9,} of {len(split):,} | hosts per subgraph: '
+          f'mean {hosts.mean():.1f}, min {hosts.min()}, max {hosts.max()}')
+print(f'Graph construction time: {graph_time:.1f} s')
 
 
 # =============================================================================
-# PART 4 - HeteroGNN model
+# PART 4: HeteroGNN
 # =============================================================================
-
-print("\n" + "=" * 60)
-print("PART 4 - Training HeteroGNN")
-print("=" * 60)
-
 
 class HeteroGNN(torch.nn.Module):
     def __init__(self, dim_h, dim_out, num_layers):
@@ -349,20 +323,6 @@ class HeteroGNN(torch.nn.Module):
 model     = HeteroGNN(dim_h=64, dim_out=5, num_layers=3).to(device)
 optimizer = Adam(model.parameters(), lr=0.001)
 
-# Inverse-frequency class weights, computed on the training split.
-if USE_CLASS_WEIGHTS:
-    counts  = df_train[labels].sum().to_numpy().astype(np.float32)
-    weights = torch.tensor(counts.sum() / (len(labels) * counts),
-                           dtype=torch.float, device=device)
-    print(f"Class weights: {[round(w, 2) for w in weights.tolist()]}")
-else:
-    weights = None
-
-
-def loss_fn(out, y_onehot):
-    """y is one-hot; argmax gives the class indices that weighting needs."""
-    return F.cross_entropy(out, y_onehot.argmax(dim=1), weight=weights)
-
 
 @torch.no_grad()
 def test(loader):
@@ -372,10 +332,10 @@ def test(loader):
     for batch in loader:
         batch.to(device)
         out  = model(batch.x_dict, batch.edge_index_dict)
-        y    = batch['flow'].y
-        loss = loss_fn(out, y)
+        y    = batch['flow'].y.argmax(dim=1)
+        loss = F.cross_entropy(out, y)
         y_pred.append(out.argmax(dim=1))
-        y_true.append(y.argmax(dim=1))
+        y_true.append(y)
         n_flows    += y.size(0)
         total_loss += float(loss) * y.size(0)
     y_pred  = torch.cat(y_pred).cpu()
@@ -384,7 +344,9 @@ def test(loader):
     return total_loss / n_flows, f1score, y_pred, y_true
 
 
-print("Training (101 epochs) ...")
+print('\nTraining HeteroGNN …')
+history = {}
+start = time.perf_counter()
 for epoch in range(101):
     model.train()
     n_flows = total_loss = 0
@@ -392,51 +354,53 @@ for epoch in range(101):
         optimizer.zero_grad()
         batch.to(device)
         out  = model(batch.x_dict, batch.edge_index_dict)
-        y    = batch['flow'].y
-        loss = loss_fn(out, y)
-        loss.backward(); optimizer.step()
+        y    = batch['flow'].y.argmax(dim=1)
+        loss = F.cross_entropy(out, y)
+        loss.backward()
+        optimizer.step()
         n_flows    += y.size(0)
         total_loss += float(loss) * y.size(0)
     if epoch % 10 == 0:
         val_loss, f1score, _, _ = test(val_loader)
-        print(f"  Epoch {epoch:>3} | Loss: {total_loss/n_flows:.4f} | "
-              f"Val loss: {val_loss:.4f} | Val F1: {f1score:.4f}")
+        history[epoch] = f1score
+        print(f'Epoch {epoch:>3} | Loss: {total_loss/n_flows:.4f} |'
+              f' Val loss: {val_loss:.4f} |'
+              f' Val F1: {f1score:.4f}')
+gnn_time = time.perf_counter() - start
+best = max(history, key=history.get)
+print(f'Best validation F1: {history[best]:.4f} at epoch {best} '
+      f'(last: {history[100]:.4f})')
 
 
 # =============================================================================
-# PART 5 - Evaluation
+# PART 5: Test evaluation
 # =============================================================================
-
-print("\n" + "=" * 60)
-print("PART 5 - Test evaluation")
-print("=" * 60)
 
 _, f1_gnn, y_pred, y_true = test(test_loader)
+print('\nHeteroGNN on the test set:')
 print(classification_report(y_true, y_pred, target_names=labels, digits=4))
 
+cm = confusion_matrix(y_true, y_pred)
+print('Confusion matrix (rows = true, columns = predicted):')
+print(pd.DataFrame(cm, index=labels, columns=labels).to_string())
+
 df_pred = pd.DataFrame({'pred': y_pred.numpy(), 'true': y_true.numpy()})
-miss    = df_pred['true'][df_pred['pred'] != df_pred['true']].value_counts()
+miss = df_pred['true'][df_pred['pred'] != df_pred['true']].value_counts()
+print('\nMisclassified flows per true class:')
+for i, n in miss.items():
+    print(f'  {labels[i]:<11} {n:>6}')
 
-if len(miss) > 0:
-    miss_labels = [labels[i] for i in miss.index]
-    gray_colors = ['#BBBBBB', '#555555', '#999999', '#111111', '#777777']
-    fig, ax = plt.subplots(figsize=(7, 6), dpi=150)
-    ax.pie(miss.values, labels=miss_labels,
-           colors=gray_colors[:len(miss)],
-           autopct='%.0f%%',
-           wedgeprops=dict(edgecolor='white', linewidth=1.5))
-    ax.set_title('Proportion of each misclassified class')
-    plt.tight_layout()
-    plt.savefig('misclassified.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    print("Saved misclassified.png")
+fig, ax = plt.subplots(figsize=(7, 6))
+ax.pie(miss.values, labels=[labels[i] for i in miss.index],
+       colors=[G5, G2, G4, G0, G3][:len(miss)], autopct='%.0f%%',
+       wedgeprops=dict(edgecolor='white', linewidth=1.5))
+ax.set_title('Proportion of each misclassified class', color=G0)
+save(fig, 'fig17_6_misclassified.png')
 
-cm      = confusion_matrix(y_true, y_pred)
 cm_norm = cm.astype('float') / cm.sum(axis=1, keepdims=True)
-
-fig, ax = plt.subplots(figsize=(8, 7), dpi=150)
+fig, ax = plt.subplots(figsize=(8, 7))
 im = ax.imshow(cm_norm, cmap='Greys', vmin=0, vmax=1)
-plt.colorbar(im, ax=ax, fraction=0.04, pad=0.03, label='Normalised count')
+plt.colorbar(im, ax=ax, fraction=0.04, pad=0.03, label='Normalized count')
 ax.set_xticks(range(len(labels)))
 ax.set_yticks(range(len(labels)))
 ax.set_xticklabels(labels, rotation=30, ha='right')
@@ -445,68 +409,80 @@ for i in range(len(labels)):
     for j in range(len(labels)):
         v = cm_norm[i, j]
         ax.text(j, i, f'{v:.3f}', ha='center', va='center',
-                fontsize=9, color='white' if v > 0.5 else '#111111')
+                fontsize=9, color='white' if v > 0.5 else G0)
 ax.set_xlabel('Predicted'); ax.set_ylabel('True')
-ax.set_title('Heterogeneous GNN - CIDDS-001 test set (row-normalised)')
-plt.tight_layout()
-plt.savefig('confusion_matrix.png', dpi=150, bbox_inches='tight')
-plt.close()
-print("Saved confusion_matrix.png")
+ax.set_title('Heterogeneous GNN, CIDDS-001 test set (row-normalized)', color=G0)
+fig.tight_layout()
+save(fig, 'fig17_7_confusion_matrix.png')
 
 
 # =============================================================================
-# PART 6 - MLP baseline on flow features only
+# PART 6: MLP on flow features only, same flows, same epochs
 # =============================================================================
 
-if RUN_MLP_BASELINE:
-    print("\n" + "=" * 60)
-    print("PART 6 - MLP baseline (flow features only, no graph)")
-    print("=" * 60)
+def to_tensors(split, n_rows):
+    part = split.iloc[:n_rows]
+    x = torch.tensor(part[features_flow].to_numpy().astype(np.float32))
+    y = torch.tensor(part[labels].to_numpy().astype(np.float32)).argmax(dim=1)
+    return x.to(device), y.to(device)
 
-    def to_tensors(split):
-        x = torch.tensor(split[features_flow].to_numpy().astype(np.float32))
-        y = torch.tensor(
-            split[labels].to_numpy().astype(np.float32)).argmax(dim=1)
-        return x.to(device), y.to(device)
 
-    x_tr, y_tr = to_tensors(df_train)
-    x_te, y_te = to_tensors(df_test)
+x_tr, y_tr = to_tensors(df_train, len(train_loader.dataset) * 1024)
+x_te, y_te = to_tensors(df_test,  len(test_loader.dataset) * 1024)
 
-    mlp = nn.Sequential(
-        nn.Linear(len(features_flow), 64), nn.LeakyReLU(),
-        nn.Linear(64, 64),                 nn.LeakyReLU(),
-        nn.Linear(64, 5),
-    ).to(device)
-    mlp_opt = Adam(mlp.parameters(), lr=0.001)
+torch.manual_seed(0)
+mlp = nn.Sequential(
+    nn.Linear(len(features_flow), 64), nn.LeakyReLU(),
+    nn.Linear(64, 64),                 nn.LeakyReLU(),
+    nn.Linear(64, 5),
+).to(device)
+mlp_opt = Adam(mlp.parameters(), lr=0.001)
 
-    n_rows   = x_tr.size(0)
-    step_size = BATCH_SIZE * 1024      # same flows per step as the GNN
-    print("Training MLP (101 epochs) ...")
-    for epoch in range(101):
-        mlp.train()
-        perm = torch.randperm(n_rows, device=device)
-        for i in range(0, n_rows, step_size):
-            idx = perm[i:i + step_size]
-            mlp_opt.zero_grad()
-            loss = F.cross_entropy(mlp(x_tr[idx]), y_tr[idx], weight=weights)
-            loss.backward(); mlp_opt.step()
-        if epoch % 20 == 0:
-            print(f"  Epoch {epoch:>3} | Loss: {float(loss):.4f}")
+print('\nTraining MLP …')
+step_size = BATCH_SIZE * 1024
+start = time.perf_counter()
+for epoch in range(101):
+    mlp.train()
+    perm = torch.randperm(x_tr.size(0), device=device)
+    for i in range(0, x_tr.size(0), step_size):
+        idx = perm[i:i + step_size]
+        mlp_opt.zero_grad()
+        loss = F.cross_entropy(mlp(x_tr[idx]), y_tr[idx])
+        loss.backward()
+        mlp_opt.step()
+    if epoch % 20 == 0:
+        print(f'Epoch {epoch:>3} | Loss: {float(loss):.4f}')
+mlp_time = time.perf_counter() - start
 
-    mlp.eval()
-    with torch.no_grad():
-        mlp_pred = mlp(x_te).argmax(dim=1).cpu()
-    y_te_cpu = y_te.cpu()
-    f1_mlp   = f1_score(y_te_cpu, mlp_pred, average='macro')
-    print(classification_report(y_te_cpu, mlp_pred,
-                                target_names=labels, digits=4))
+mlp.eval()
+with torch.no_grad():
+    mlp_pred = mlp(x_te).argmax(dim=1).cpu()
+y_te_cpu = y_te.cpu()
+f1_mlp = f1_score(y_te_cpu, mlp_pred, average='macro')
+print('\nMLP on the same test flows:')
+print(classification_report(y_te_cpu, mlp_pred, target_names=labels, digits=4))
+print('Confusion matrix (rows = true, columns = predicted):')
+print(pd.DataFrame(confusion_matrix(y_te_cpu, mlp_pred),
+                   index=labels, columns=labels).to_string())
+print(f'Same test flows as the GNN: {bool((y_te_cpu == y_true).all())}')
 
-    print("-" * 52)
-    print(f"HeteroGNN macro F1: {f1_gnn:.4f}")
-    print(f"MLP       macro F1: {f1_mlp:.4f}")
-    print(f"Difference:         {f1_gnn - f1_mlp:+.4f}")
-    print("-" * 52)
-    print("A difference near zero means the graph structure is not")
-    print("contributing, and the framing of the chapter has to change.")
 
-print("\nDone.")
+# =============================================================================
+# PART 7: Summary, timing, and environment
+# =============================================================================
+
+print(f'\nHeteroGNN macro F1: {f1_gnn:.4f}')
+print(f'MLP       macro F1: {f1_mlp:.4f}')
+print(f'Difference:         {f1_gnn - f1_mlp:+.4f}')
+
+print(f'\nGraph construction:            {graph_time:.1f} s')
+print(f'HeteroGNN training (101 epochs): {gnn_time:.1f} s')
+print(f'MLP training (101 epochs):       {mlp_time:.1f} s')
+print(f'Peak process memory:             {peak_memory_mb():,.0f} MB')
+if device.type == 'cuda':
+    print(f'Peak GPU memory: {torch.cuda.max_memory_allocated() / 2**20:,.0f} MB')
+print(f'Platform:  {platform.platform()}')
+print(f'Processor: {platform.processor() or platform.machine()}')
+print(f'Python {platform.python_version()}, PyTorch {torch.__version__}, '
+      f'threads {torch.get_num_threads()}')
+print('\nDone.')

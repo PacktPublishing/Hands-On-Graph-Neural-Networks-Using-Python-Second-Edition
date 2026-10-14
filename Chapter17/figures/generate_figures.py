@@ -1,139 +1,168 @@
 """
-Chapter 17 – Detecting Anomalies Using Heterogeneous GNNs
-generate_figures17_anomaly.py
+Chapter 17: conceptual diagrams.
 
-Generates the two conceptual diagrams of the chapter: the CIDDS-001
-network layout (17.1) and the HeteroGNN architecture (17.5). Every other
-figure is data-derived and is produced by run.py from a real run, so that
-nothing printed in the chapter comes from synthetic values.
+Saves, in the same folder as this script:
+    fig17_1_network.png
+    fig17_5_hetero_gnn.png
 
-Usage:
-    python generate_figures.py
-    -> saves fig17_1_network.png and fig17_5_hetero_gnn.png here
+The data-derived figures (17.2, 17.3, 17.4, 17.6, 17.7) are produced by run.py.
+
+Run: python generate_figures.py
 """
+
+import os
 
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch
-import os
 
 np.random.seed(0)
 
-OUT  = os.path.dirname(os.path.abspath(__file__))
-FONT = "DejaVu Sans"; BG = "white"
-G0="#111111"; G1="#333333"; G2="#555555"
-G3="#777777"; G4="#999999"; G5="#BBBBBB"; G6="#DDDDDD"
+OUT = os.path.dirname(os.path.abspath(__file__))
+
+FONT = "DejaVu Sans"
+BG = "white"
+G0 = "#111111"
+G1 = "#333333"
+G2 = "#555555"
+G3 = "#777777"
+G4 = "#999999"
+G5 = "#BBBBBB"
+G6 = "#DDDDDD"
+
 
 def save(fig, name, dpi=200):
-    path = os.path.join(OUT, name)
-    fig.savefig(path, dpi=dpi, bbox_inches='tight',
+    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
                 facecolor=BG, edgecolor='none')
     plt.close(fig)
-    print(f"  saved {path}")
+    print(f"  saved {name}")
 
-def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04):
-    rect = FancyBboxPatch((x-w/2, y-h/2), w, h,
-                          boxstyle=f"round,pad=0.02,rounding_size={r}",
-                          facecolor=fill, edgecolor=G4,
-                          linewidth=1.1, zorder=3)
-    ax.add_patch(rect)
-    for li, line in enumerate(label.split('\n')):
-        off = 0.11 * (li - label.count('\n') / 2)
-        ax.text(x, y-off, line, ha='center', va='center', fontsize=fs,
-                color=fc, fontweight='bold', fontfamily=FONT, zorder=4)
 
-def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
+def rbox(ax, x, y, w, h, lines, fill, fc='white', fs=10, gap=0.24,
+         bold_first=True, edge=G3, ls='-'):
+    ax.add_patch(FancyBboxPatch((x - w/2, y - h/2), w, h,
+                                boxstyle="round,pad=0.02,rounding_size=0.06",
+                                facecolor=fill, edgecolor=edge, linewidth=1.2,
+                                linestyle=ls, zorder=3))
+    n = len(lines)
+    for i, line in enumerate(lines):
+        ax.text(x, y + (n - 1) / 2 * gap - i * gap, line, ha='center',
+                va='center', fontsize=fs if (i == 0 or not bold_first) else fs - 1,
+                color=fc, fontweight='bold' if (i == 0 or not bold_first) else 'normal',
+                fontfamily=FONT, zorder=4)
+
+
+def arr(ax, x1, y1, x2, y2, color=G2, lw=1.6, ls='-'):
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
-                arrowprops=dict(arrowstyle="-|>", color=color,
-                                lw=lw, mutation_scale=12), zorder=2)
+                arrowprops=dict(arrowstyle="-|>", color=color, lw=lw,
+                                linestyle=ls, mutation_scale=14), zorder=2)
 
 
-# ── Fig 17.1: Virtual network diagram ────────────────────────────────────────
+# =============================================================================
+# PART 1: Figure 17.1, the emulated network of CIDDS-001
+# =============================================================================
+
 print("Figure 17.1 …")
-fig, ax = plt.subplots(figsize=(12, 7))
-fig.patch.set_facecolor(BG); ax.set_facecolor("#F4F4F4"); ax.axis('off')
-ax.set_xlim(0, 12); ax.set_ylim(0, 7)
+
+fig, ax = plt.subplots(figsize=(13, 7))
+fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
+ax.set_xlim(0, 13); ax.set_ylim(0, 7)
+
+ax.add_patch(FancyBboxPatch((0.3, 0.5), 7.6, 5.6,
+                            boxstyle="round,pad=0.02,rounding_size=0.1",
+                            facecolor="#F4F4F4", edgecolor=G4,
+                            linewidth=1.2, linestyle='--', zorder=1))
+ax.text(4.1, 5.8, "OpenStack environment (internal traffic)", ha='center',
+        fontsize=11, fontweight='bold', color=G1, fontfamily=FONT)
+
+rbox(ax, 4.1, 3.3, 2.0, 0.8, ["Internal network"], G2)
 
 subnets = [
-    (1.4, 5.5, 2.0, 1.4, "Developer\n192.168.100.x", G1),
-    (4.5, 5.5, 2.0, 1.4, "Office\n192.168.200.x",    G2),
-    (7.6, 5.5, 2.0, 1.4, "Management\n192.168.210.x", G3),
-    (4.5, 2.4, 2.0, 1.4, "Server\n192.168.220.x",    G0),
+    (1.8, 4.7, ["Server", "192.168.100.0/24"], G0),
+    (6.4, 4.7, ["Management", "192.168.200.0/24"], G1),
+    (6.4, 1.6, ["Office", "192.168.210.0/24"], G1),
+    (1.8, 1.6, ["Developer", "192.168.220.0/24",
+                "incl. the 2 attacking clients"], G0),
 ]
-for x, y, w, h, lbl, fill in subnets:
-    rbox(ax, x, y, w, h, lbl, fill=fill, fc='white', fs=9)
+for x, y, lines, fill in subnets:
+    rbox(ax, x, y, 2.5, 1.15 if len(lines) == 3 else 0.95, lines, fill)
+    ax.plot([x, 4.1], [y, 3.3], color=G3, linewidth=1.6, zorder=2)
 
-rbox(ax, 4.5, 4.2, 1.4, 0.7, "Firewall", fill=G1, fc='white', fs=9)
-
-circle = plt.Circle((9.5, 4.2), 0.9, color=G5, fill=True, zorder=2)
+circle = plt.Circle((9.4, 3.3), 0.85, facecolor=G6, edgecolor=G3,
+                    linewidth=1.2, zorder=2)
 ax.add_patch(circle)
-ax.text(9.5, 4.2, "Internet", ha='center', va='center',
-        fontsize=9, fontweight='bold', color=G0, fontfamily=FONT, zorder=3)
+ax.text(9.4, 3.3, "Internet", ha='center', va='center', fontsize=11,
+        fontweight='bold', color=G0, fontfamily=FONT, zorder=3)
+ax.plot([5.1, 8.55], [3.3, 3.3], color=G3, linewidth=1.6, zorder=1)
 
-rbox(ax, 11.0, 4.2, 1.6, 1.0, "External\nserver\n(FTP + Web)", fill=G4, fc='white', fs=8)
-ax.text(9.5, 1.8, "⚠ Attackers", ha='center', fontsize=10,
-        color=G0, fontweight='bold', fontfamily=FONT)
-ax.annotate("", xy=(9.5, 3.2), xytext=(9.5, 2.1),
-            arrowprops=dict(arrowstyle="-|>", color=G0, lw=2.0,
-                            mutation_scale=14, linestyle='dashed'))
+rbox(ax, 11.6, 4.8, 2.3, 1.15, ["External server", "web server",
+                                "file synchronization"], G3)
+ax.plot([10.1, 10.45], [3.8, 4.4], color=G3, linewidth=1.6, zorder=1)
 
-connections = [
-    (1.4, 4.83, 3.8, 4.33), (4.5, 4.83, 4.5, 4.55),
-    (7.6, 4.83, 5.2, 4.33), (4.5, 3.65, 4.5, 3.17),
-    (5.2, 4.2, 10.4, 4.2),
-]
-for x1, y1, x2, y2 in connections:
-    ax.plot([x1, x2], [y1, y2], color=G2, linewidth=1.8, zorder=1)
+rbox(ax, 11.6, 1.6, 2.3, 0.95, ["External attackers", "attack the external server"],
+     G6, fc=G0)
+arr(ax, 11.6, 2.1, 11.6, 4.2, color=G0, lw=1.8, ls='--')
 
-ax.set_title("CIDDS-001 — virtual network environment\n"
-             "Connections collected from local and external servers",
+ax.set_title("CIDDS-001: emulated small business network",
              fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=8)
 fig.tight_layout()
 save(fig, "fig17_1_network.png")
 
 
-# ── Fig 17.5: HeteroGNN architecture ─────────────────────────────────────────
+# =============================================================================
+# PART 2: Figure 17.5, the heterogeneous GNN
+# =============================================================================
+
 print("Figure 17.5 …")
-fig, ax = plt.subplots(figsize=(13, 6))
+
+fig, ax = plt.subplots(figsize=(14, 6))
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 13); ax.set_ylim(0, 6)
+ax.set_xlim(0, 14); ax.set_ylim(0, 6)
 
-rbox(ax, 1.0, 4.5, 1.6, 0.8, "Host nodes\n(IP features)",   fill=G1, fc='white', fs=9)
-rbox(ax, 1.0, 2.5, 1.6, 0.8, "Flow nodes\n(traffic feat.)", fill=G3, fc='white', fs=9)
+Y_FLOW, Y_HOST = 4.1, 1.9
 
-for l, x in enumerate([3.5, 5.8, 8.1]):
-    rbox(ax, x, 4.5, 1.8, 0.85, f"SAGEConv x2\nhost->flow\n(sends / receives)",
-         fill=G2, fc='white', fs=7.5)
-    rbox(ax, x, 2.5, 1.8, 0.85, f"SAGEConv x2\nflow->host\n(sent_by / received_by)",
-         fill=G2, fc='white', fs=7.5)
-    rect = plt.Rectangle((x-1.1, 1.85), 2.2, 3.4,
-                          fill=False, edgecolor=G4,
-                          linestyle='--', linewidth=1.2, zorder=1)
-    ax.add_patch(rect)
-    ax.text(x, 5.55, f"HeteroConv {l+1}", ha='center',
-            fontsize=8, color=G3, fontstyle='italic', fontfamily=FONT)
-    if l > 0:
-        arr(ax, x-1.1, 4.5, x-0.85, 4.5, color=G2)
-        arr(ax, x-1.1, 2.5, x-0.85, 2.5, color=G2)
+rbox(ax, 1.0, Y_FLOW, 1.7, 0.9, ["Flow nodes", "flow features"], G3)
+rbox(ax, 1.0, Y_HOST, 1.7, 0.9, ["Host nodes", "16 address bits"], G1)
 
-arr(ax, 1.8, 4.5, 2.65, 4.5, color=G1)
-arr(ax, 1.8, 2.5, 2.65, 2.5, color=G3)
+xs = [3.6, 6.4, 9.2]
+for l, x in enumerate(xs):
+    ax.add_patch(plt.Rectangle((x - 1.25, 1.05), 2.5, 4.0, fill=False,
+                               edgecolor=G4, linestyle='--', linewidth=1.2,
+                               zorder=1))
+    ax.text(x, 5.3, f"HeteroConv {l + 1} + LeakyReLU", ha='center',
+            fontsize=10, color=G1, fontstyle='italic', fontfamily=FONT)
+    rbox(ax, x, Y_FLOW, 2.2, 1.05,
+         ["Update flows", "SAGEConv (sends)", "+ SAGEConv (receives)"], G2, fs=10)
+    rbox(ax, x, Y_HOST, 2.2, 1.05,
+         ["Update hosts", "SAGEConv (sent_by)", "+ SAGEConv (received_by)"], G2, fs=10)
+    ax.annotate("", xy=(x - 0.35, Y_FLOW - 0.55), xytext=(x - 0.35, Y_HOST + 0.55),
+                arrowprops=dict(arrowstyle="-|>", color=G4, lw=1.1,
+                                mutation_scale=10), zorder=2)
+    ax.annotate("", xy=(x + 0.35, Y_HOST + 0.55), xytext=(x + 0.35, Y_FLOW - 0.55),
+                arrowprops=dict(arrowstyle="-|>", color=G4, lw=1.1,
+                                mutation_scale=10), zorder=2)
 
-arr(ax, 9.0, 4.5, 9.5, 3.8, color=G2)
-arr(ax, 9.0, 2.5, 9.5, 3.2, color=G2)
-rbox(ax, 10.0, 3.5, 1.4, 1.4, "LeakyReLU\n+\nLinear(5)", fill=G0, fc='white', fs=9)
-arr(ax, 10.7, 3.5, 11.5, 3.5, color=G0, lw=1.6)
-ax.text(11.7, 3.5, "5 classes\n(output)",
-        ha='left', va='center', fontsize=9,
-        fontweight='bold', color=G0, fontfamily=FONT)
+arr(ax, 1.85, Y_FLOW, 2.45, Y_FLOW)
+arr(ax, 1.85, Y_HOST, 2.45, Y_HOST)
+for a, b in zip(xs[:-1], xs[1:]):
+    arr(ax, a + 1.1, Y_FLOW, b - 1.1, Y_FLOW)
+    arr(ax, a + 1.1, Y_HOST, b - 1.1, Y_HOST)
 
-ax.set_title("Heterogeneous GNN architecture: 3 HeteroConv layers, 4 relations each",
+rbox(ax, 11.6, Y_FLOW, 1.6, 0.9, ["Linear", "64 → 5"], G0)
+arr(ax, 10.3, Y_FLOW, 10.8, Y_FLOW, color=G0)
+arr(ax, 12.4, Y_FLOW, 12.85, Y_FLOW, color=G0)
+ax.text(13.45, Y_FLOW, "5 class\nscores\nper flow", ha='center', va='center',
+        fontsize=10, fontweight='bold', color=G0, fontfamily=FONT)
+ax.text(11.6, Y_HOST, "Host embeddings are\nnot used by the classifier",
+        ha='center', va='center', fontsize=9.5, color=G3, fontstyle='italic',
+        fontfamily=FONT)
+
+ax.set_title("Heterogeneous GNN: three HeteroConv layers, each with four SAGEConv "
+             "relations summed per node type",
              fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
 fig.tight_layout()
 save(fig, "fig17_5_hetero_gnn.png")
 
-
-print("\nDone: fig17_1 and fig17_5 saved.")
+print(f"\nAll figures saved to {OUT}")
