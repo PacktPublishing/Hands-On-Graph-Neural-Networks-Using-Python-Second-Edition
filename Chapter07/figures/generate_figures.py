@@ -52,6 +52,41 @@ def load_stats() -> dict:
         return json.load(f)
 
 
+# ── Figure 7.1 — ReLU versus Leaky ReLU ────────────────────────────────
+def make_fig_07_01(alpha: float = 0.2) -> str:
+    """Both activations on one row, drawn from their definitions."""
+    x = np.linspace(-3, 3, 601)
+    panels = [("ReLU", np.maximum(0.0, x), G1,
+               "flat: gradient 0\nfor every x < 0"),
+              (f"Leaky ReLU ($\\alpha$ = {alpha})", np.where(x > 0, x, alpha * x),
+               G1, f"slope {alpha},\nnot zero")]
+
+    fig, axes = figure(aspect=0.42, ncols=2, sharey=True)
+    for ax, (name, y, colour, note_text) in zip(axes, panels):
+        ax.axhline(0, color=G5, lw=0.7, zorder=1)
+        ax.axvline(0, color=G5, lw=0.7, zorder=1)
+        ax.plot(x, y, color=colour, lw=1.8, zorder=3)
+        # The note sits in the empty upper left, clear of both curves, so it
+        # needs no leader line across the plot.
+        ax.text(-2.85, 2.55, note_text, fontsize=8, color=INK_SOFT,
+                fontfamily=FONT, ha="left", va="top", linespacing=1.4)
+        ax.set_title(name, fontsize=9.5, fontweight="bold", color=INK,
+                     fontfamily=FONT)
+        ax.set_xlabel("x", fontsize=9, color=INK, fontfamily=FONT)
+        ax.set_xlim(-3, 3); ax.set_ylim(-1, 3)
+        ax.set_xticks([-3, -2, -1, 0, 1, 2, 3])
+        ax.tick_params(axis="both", colors=INK, labelsize=8)
+        for lbl in ax.get_xticklabels() + ax.get_yticklabels():
+            lbl.set_fontfamily(FONT)
+        ax.spines[["left", "bottom"]].set_color(G3)
+    axes[0].set_ylabel("f(x)", fontsize=9, color=INK, fontfamily=FONT)
+
+    out_path = os.path.join(HERE, "fig_07_01.png")
+    save_fig(fig, out_path)
+    return out_path
+
+
+
 # ── Figure 7.4 — CiteSeer sampled subgraph ──────────────────────────────────
 def pack_components(G, gap: float = 0.6, row_width: float = 15.0) -> dict:
     import networkx as nx
@@ -259,10 +294,12 @@ def make_fig_07_07(stats: dict) -> str:
 
 
 def main() -> None:
+    p1 = make_fig_07_01()
     p4 = make_fig_07_04()
     stats = load_stats()
     p5 = make_fig_07_05(stats)
     p7 = make_fig_07_07(stats)
+    print(f"Wrote {p1}")
     print(f"Wrote {p4}")
     print(f"Wrote {p5}")
     print(f"Wrote {p7}")
