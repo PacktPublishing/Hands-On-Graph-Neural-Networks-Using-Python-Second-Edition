@@ -199,9 +199,11 @@ def draw_gat(ax, heading, columns, box_h, x_half=0.13):
         for y, label, fill in specs:
             box(ax, x, y, 2 * x_half, box_h, label, fill=fill, fs=7.5)
     for i in range(len(columns) - 1):
-        mid_a = float(np.mean([spec[0] for spec in columns[i]]))
-        mid_b = float(np.mean([spec[0] for spec in columns[i + 1]]))
-        arr(ax, xs[i] + x_half + 0.01, mid_a, xs[i + 1] - x_half - 0.01, mid_b,
+        # One height for both ends, so the connector is horizontal. Taking the
+        # centre of each column separately tilts it whenever the two columns
+        # hold a different number of boxes.
+        y = float(np.mean([spec[0] for spec in columns[i] + columns[i + 1]]))
+        arr(ax, xs[i] + x_half + 0.01, y, xs[i + 1] - x_half - 0.01, y,
             color=G3)
 
 
