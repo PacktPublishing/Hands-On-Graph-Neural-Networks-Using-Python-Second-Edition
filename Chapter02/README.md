@@ -15,11 +15,11 @@ Figures 2.1, 2.2, 2.3, 2.7 and 2.8 are not here. They were accepted as
 supplied and have no source in this repository, so the chapter's printed
 figures come from two places.
 
-Regenerate it with:
+Regenerate them with:
 
 ```bash
 cd Chapter02
 python figures/generate_figures.py
 ```
 
-It is drawn in grayscale, as printed. `matplotlib` is the only dependency.
+They are drawn in grayscale, as printed. `matplotlib` and `numpy` are the only dependencies.
