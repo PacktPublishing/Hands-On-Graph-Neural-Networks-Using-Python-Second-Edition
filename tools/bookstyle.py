@@ -3,9 +3,10 @@
 
 Packt sets the body text in a column COL_WIDTH inches wide. A figure handed
 over wider than that is reduced to fit, and every label in it shrinks by the
-same factor: the figures drawn 13 inches wide reached the page at 0.46x, so
-their 9 pt labels arrived as 4 pt. That, and not the choice of font, is why
-the reviewers rejected them for "Readability of text".
+same factor: a figure drawn 13 inches wide and placed at 5.5 arrives at 0.42x,
+so its 9 pt labels reach the page as 4 pt. That, and not the choice of font or
+the resolution, is why the reviewers rejected them for "Readability of text" —
+the same figures were already being supplied at over 300 dpi.
 
 Draw at COL_WIDTH and the scale factor is 1.0 — the point size asked for here
 is the point size the reader gets.
@@ -39,9 +40,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # The print geometry. These four numbers decide everything else; if Packt
 # confirms a different column width, change COL_WIDTH and re-run the audit.
 # ---------------------------------------------------------------------------
-COL_WIDTH = 6.0      # inches of text column: the default width of a figure
-PAGE_WIDTH = 6.9     # inches edge to edge, for a figure that needs the margins
-DPI = 300            # what print asks for; 150 is what "pixelated" looked like
+# Measured from the manuscripts, not guessed: their template is US Letter with
+# 1.1in margins, a 6.30in column, and the figures are placed in it at 5.50in
+# (Chapter 9), 5.80in (Chapters 10 and 19) and 6.00in (Chapter 20). Authoring
+# at the narrowest of those means no placement ever reduces a figure.
+COL_WIDTH = 5.5      # inches: the width a figure is placed at, so its own width
+PAGE_WIDTH = 6.3     # inches: the manuscript column, for a figure that needs it
+# 300 dpi is the print floor and is enough: the rejected figures of Chapters 10,
+# 19 and 20 sat at 319-463 dpi and were still rejected, for their text size.
+DPI = 300
 MIN_PT = 8.0         # smallest point size that survives printing
 
 # The grayscale palette the chapters share, darkest first. The book is printed
