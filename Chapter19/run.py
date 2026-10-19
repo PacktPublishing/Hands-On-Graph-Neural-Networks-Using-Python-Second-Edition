@@ -21,6 +21,7 @@ PART 5  Figure 19.3 from the comparison, saved to figures/
 import csv
 import json
 import os
+import sys
 import random
 import re
 import urllib.request
@@ -332,46 +333,50 @@ print('PART 5 - Figure 19.3')
 print('=' * 70)
 
 FONT = 'DejaVu Sans'
-G0 = '#111111'; G1 = '#333333'; G2 = '#555555'
-G3 = '#777777'; G4 = '#999999'; G5 = '#BBBBBB'; G6 = '#DDDDDD'
-plt.rcParams['font.family'] = FONT
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, INK, INK_SOFT,
+                       G3 as BG3, G4 as BG4, G5 as BG5, G6 as BG6)
+
+apply()
+G0 = '#111111'
 
 acc = [100 * sum(results[s]) / n for s in SYSTEMS]
 names = ['G-Retriever', 'G-Retriever\nwithout soft prompt', 'LoRA baseline\n(no GNN)']
 counts = [both, g_only, b_only, neither]
 
-fig, axes = plt.subplots(1, 2, figsize=(13, 4.8),
-                         gridspec_kw={'width_ratios': [1.2, 1.4]})
+# Stacked, not side by side: at 5.5 inches the right panel's category
+# labels would take most of its 2.7.
+fig, axes = figure(aspect=0.95, nrows=2)
 
 ax = axes[0]
-bars = ax.bar(names, acc, color=[G1, G5, G3], edgecolor=G0, width=0.55)
+bars = ax.bar(names, acc, color=[BG4, BG6, BG5], edgecolor=BG3, width=0.55)
 for bar, value in zip(bars, acc):
     ax.text(bar.get_x() + bar.get_width() / 2, value + 1.5, f'{value:.1f}%',
-            ha='center', fontsize=11, fontweight='bold', color=G0)
+            ha='center', fontsize=8.5, fontweight='bold', color=INK)
 ax.set_ylim(0, 100)
-ax.set_ylabel('Test accuracy (%)', fontsize=10, color=G0)
-ax.set_title(f'Accuracy on {n} test samples', fontsize=11, color=G0)
+ax.set_ylabel('Test accuracy (%)', fontsize=9, color=INK)
+ax.set_title(f'Accuracy on {n} test samples', fontsize=9.5, color=INK,
+             fontweight='bold')
 
 ax = axes[1]
 labels = ['Both correct', 'G-Retriever only', 'LoRA baseline only',
           'Both wrong']
-bars = ax.barh(labels[::-1], counts[::-1], color=[G5, G3, G1, G6][::-1],
-               edgecolor=G0, height=0.55)
+bars = ax.barh(labels[::-1], counts[::-1], color=[BG6, BG5, BG4, BG6][::-1],
+               edgecolor=BG3, height=0.55)
 for bar, value in zip(bars, counts[::-1]):
     ax.text(bar.get_width() + 3, bar.get_y() + bar.get_height() / 2,
-            str(value), va='center', fontsize=11, fontweight='bold', color=G0)
+            str(value), va='center', fontsize=8.5, fontweight='bold',
+            color=INK)
 ax.set_xlim(0, max(counts) * 1.15)
-ax.set_xlabel('Number of test samples', fontsize=10, color=G0)
-ax.set_title('G-Retriever vs LoRA baseline', fontsize=11, color=G0)
+ax.set_xlabel('Number of test samples', fontsize=9, color=INK)
+ax.set_title('G-Retriever vs LoRA baseline', fontsize=9.5, color=INK,
+             fontweight='bold')
 
 for ax in axes:
     ax.spines[['top', 'right']].set_visible(False)
-    ax.tick_params(colors=G0, labelsize=10)
+    ax.tick_params(colors=INK, labelsize=8.5)
 
-fig.tight_layout()
-fig.savefig(os.path.join(FIG_DIR, 'fig19_3_gretriever_vs_textonly.png'),
-            dpi=200, bbox_inches='tight', facecolor='white')
-plt.close(fig)
+save_fig(fig, os.path.join(FIG_DIR, 'fig19_3_gretriever_vs_textonly.png'))
 print('  saved figures/fig19_3_gretriever_vs_textonly.png')
 
 print('\nDone.')
