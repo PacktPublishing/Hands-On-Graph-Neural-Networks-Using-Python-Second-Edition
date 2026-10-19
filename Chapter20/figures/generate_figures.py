@@ -4,22 +4,32 @@ Figures produced:
     fig20_1_workflows.png               specialized workflow vs foundation workflow
     fig20_2_pretraining_families.png    the five families of pretraining approaches compared (table)
 
-Same grayscale palette, font and box style as the conceptual figures of Chapter 14.
+Figure 20.1 is drawn through bookstyle, at the width it is printed. Figure
+20.2 is left as it was: it is not on the reviewers' list, and a six-column
+table of sentences cannot be squeezed into 5.5 inches without deciding what
+to cut, which is the author's call and not a layout fix.
 """
+import os
+import sys
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch, Rectangle
 
-G0 = "#111111"; G1 = "#333333"; G2 = "#555555"; G3 = "#777777"
-G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
-plt.rcParams['font.family'] = 'DejaVu Sans'
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, FILLS, G1, G2, G3, G4, G5, G6)
+
+apply()
+G0 = "#111111"
 DARK = {G0, G1, G2, G3, G4}
+OUT = os.path.dirname(os.path.abspath(__file__))
 
 
 def save(fig, name):
-    fig.savefig(name, dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
-    plt.close(fig)
+    save_fig(fig, os.path.join(OUT, name))
     print(f"Saved {name}")
 
 
@@ -37,42 +47,64 @@ def arrow(ax, x0, y0, x1, y1, color=G2, lw=1.8):
                 arrowprops=dict(arrowstyle='-|>', color=color, lw=lw, mutation_scale=16))
 
 
-fig, ax = plt.subplots(figsize=(14, 6))
-ax.set_xlim(0, 14)
-ax.set_ylim(0, 6)
-ax.axis('off')
+# ── Figure 20.1 ──────────────────────────────────────────────
+# The two workflows are stacked, not set side by side: at 5.5 inches a pair of
+# panels leaves each 2.7, and the specialized one needs three columns of boxes.
+fig, axes = figure(aspect=0.88, nrows=2, gridspec_kw={'height_ratios': [1, 1]})
+for ax in axes:
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis('off'); ax.set_facecolor(BG)
 
-ax.text(7, 5.85, 'From specialized GNNs to Graph Foundation Models',
-        ha='center', va='center', fontsize=14, fontweight='bold', color=G0)
 
-# Left panel: one model per graph per task
-ax.text(3.5, 5.1, 'Specialized workflow (chapters 1–19)',
-        ha='center', va='center', fontsize=13, fontweight='bold', color=G0)
-for x, letter in zip([1.45, 3.5, 5.55], 'ABC'):
-    box(ax, x, 4.2, 1.4, 0.4, f'Graph {letter}', G6, fontsize=10)
-    arrow(ax, x, 4.0, x, 3.0, color=G3, lw=1.5)
-    box(ax, x, 2.75, 1.4, 0.5, f'Model {letter}', G2, fontsize=11)
-    arrow(ax, x, 2.5, x, 1.5, color=G3, lw=1.5)
-    box(ax, x, 1.27, 1.4, 0.45, f'Task {letter}', G4, fontsize=10)
-ax.text(3.5, 0.4, 'One model per graph, trained from scratch.',
-        ha='center', va='center', fontsize=10, style='italic', color=G2)
+def flat(ax, cx, cy, w, h, text, fill, fs=8):
+    ax.add_patch(Rectangle((cx - w / 2, cy - h / 2), w, h, facecolor=fill,
+                           edgecolor=G3, linewidth=0.8, zorder=3))
+    ax.text(cx, cy, text, ha='center', va='center', fontsize=fs, color=INK,
+            fontweight='bold', fontfamily=FONT, linespacing=1.4, zorder=4)
 
-# Right panel: one pretrained backbone reused across tasks
-ax.text(10.5, 5.1, 'Foundation workflow (chapter 20)',
-        ha='center', va='center', fontsize=13, fontweight='bold', color=G0)
-box(ax, 10.5, 4.3, 5.4, 0.45, 'Pretraining corpus (many graphs, self-supervised)', G6, fontsize=10)
-arrow(ax, 10.5, 4.07, 10.5, 3.42)
-ax.text(10.75, 3.75, 'pretrain once', ha='left', va='center',
-        fontsize=10, style='italic', color=G3)
-box(ax, 10.5, 2.95, 3.1, 0.85, 'Foundation model\n(one pretrained backbone)', G0, fontsize=11)
-for x in [8.45, 10.5, 12.55]:
-    arrow(ax, 10.5 + (x - 10.5) * 0.63, 2.52, x, 1.5)
-ax.text(10.65, 2.0, 'fine-tune\n(or zero-shot)', ha='left', va='center',
-        fontsize=10, style='italic', color=G3, linespacing=1.3)
-for x, letter in zip([8.45, 10.5, 12.55], 'ABC'):
-    box(ax, x, 1.27, 1.4, 0.45, f'Task {letter}', G4, fontsize=10)
-ax.text(10.5, 0.4, 'One pretrained backbone reused across tasks and graphs.',
-        ha='center', va='center', fontsize=10, style='italic', color=G2)
+
+def thin(ax, x0, y0, x1, y1, lw=1.0):
+    ax.annotate('', xy=(x1, y1), xytext=(x0, y0),
+                arrowprops=dict(arrowstyle='-|>', color=G3, lw=lw,
+                                mutation_scale=8), zorder=2)
+
+
+# a. one model per graph, trained from scratch
+ax = axes[0]
+ax.text(0.5, 0.97, 'Specialized workflow (chapters 1\u201319)', ha='center',
+        va='top', fontsize=9, fontweight='bold', color=INK, fontfamily=FONT)
+for x, letter in zip([0.22, 0.50, 0.78], 'ABC'):
+    flat(ax, x, 0.70, 0.20, 0.13, f'Graph {letter}', G6)
+    thin(ax, x, 0.635, x, 0.525)
+    flat(ax, x, 0.46, 0.20, 0.13, f'Model {letter}', FILLS[1])
+    thin(ax, x, 0.395, x, 0.285)
+    flat(ax, x, 0.22, 0.20, 0.13, f'Task {letter}', FILLS[2])
+ax.text(0.5, 0.05, 'One model per graph, trained from scratch.', ha='center',
+        va='center', fontsize=8, style='italic', color=INK_SOFT,
+        fontfamily=FONT)
+
+# b. one pretrained backbone, reused
+ax = axes[1]
+ax.text(0.5, 0.97, 'Foundation workflow (chapter 20)', ha='center', va='top',
+        fontsize=9, fontweight='bold', color=INK, fontfamily=FONT)
+flat(ax, 0.5, 0.76, 0.78, 0.13,
+     'Pretraining corpus (many graphs, self-supervised)', G6)
+thin(ax, 0.5, 0.695, 0.5, 0.585)
+ax.text(0.53, 0.64, 'pretrain once', ha='left', va='center', fontsize=8,
+        style='italic', color=INK_SOFT, fontfamily=FONT)
+flat(ax, 0.5, 0.50, 0.42, 0.15, 'Foundation model\n(one pretrained backbone)',
+     FILLS[1])
+for x in [0.22, 0.50, 0.78]:
+    thin(ax, 0.5 + (x - 0.5) * 0.55, 0.42, x, 0.295)
+# Left of the fan-out, not right: on the right it lands on the diagonal
+# arrow into Task C.
+ax.text(0.03, 0.36, 'fine-tune\n(or zero-shot)', ha='left', va='center',
+        fontsize=8, style='italic', color=INK_SOFT, fontfamily=FONT,
+        linespacing=1.4)
+for x, letter in zip([0.22, 0.50, 0.78], 'ABC'):
+    flat(ax, x, 0.23, 0.20, 0.13, f'Task {letter}', FILLS[2])
+ax.text(0.5, 0.05, 'One pretrained backbone reused across tasks and graphs.',
+        ha='center', va='center', fontsize=8, style='italic', color=INK_SOFT,
+        fontfamily=FONT)
 
 save(fig, 'fig20_1_workflows.png')
 
