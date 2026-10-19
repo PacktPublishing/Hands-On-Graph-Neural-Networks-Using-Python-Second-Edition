@@ -22,7 +22,14 @@ np.random.seed(SEED)
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 
-FONT = "DejaVu Sans"
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, FILLS)
+
+apply()
 BG = "white"
 G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
 G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
@@ -31,36 +38,32 @@ plt.rcParams['font.family'] = FONT
 plt.rcParams['mathtext.fontset'] = 'dejavusans'
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(OUT, name))
     print(f"  saved {name}")
 
 
-def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04, ls=0.22):
-    rect = FancyBboxPatch((x - w / 2, y - h / 2), w, h,
-                          boxstyle=f"round,pad=0.02,rounding_size={r}",
-                          facecolor=fill, edgecolor=G4, linewidth=1.1,
-                          zorder=3)
-    ax.add_patch(rect)
-    lines = label.split('\n')
-    for li, line in enumerate(lines):
-        off = ls * (li - (len(lines) - 1) / 2)
-        ax.text(x, y - off, line, ha='center', va='center', fontsize=fs,
-                color=fc, fontweight='bold', zorder=4)
+from matplotlib.patches import Rectangle
 
 
-def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
+def rbox(ax, x, y, w, h, label, fill=G6, fc=None, fs=8, r=0.04, ls=None):
+    """Square corners, dark type on a light fill; `fc` and `ls` are ignored."""
+    ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h, facecolor=fill,
+                           edgecolor=G3, linewidth=0.8, zorder=3))
+    ax.text(x, y, label, ha='center', va='center', fontsize=fs, color=INK,
+            fontweight='bold', linespacing=1.5, zorder=4)
+
+
+def arr(ax, x1, y1, x2, y2, color=G3, lw=1.1):
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
                 arrowprops=dict(arrowstyle="-|>", color=color,
-                                lw=lw, mutation_scale=12), zorder=2)
+                                lw=lw, mutation_scale=9), zorder=2)
 
 
 # Figure 18.5 - Collaborative filtering on a bipartite graph
 print("Figure 18.5 ...")
 
-fig, ax = plt.subplots(figsize=(10, 5.5))
+fig, ax = plt.subplots(figsize=(5.50, 3.02))
 fig.patch.set_facecolor(BG)
 ax.set_facecolor(BG)
 ax.axis('off')
@@ -79,7 +82,7 @@ for name, (x, y) in users.items():
             fontsize=10, color=G0)
 
 for name, (x, y) in items.items():
-    ax.add_patch(plt.Circle((x, y), R, color=G3, zorder=3))
+    ax.add_patch(plt.Circle((x, y), R, color=INK_SOFT, zorder=3))
     ax.text(x, y, name, ha='center', va='center', fontsize=10,
             color='white', fontweight='bold', zorder=4)
     ax.text(x + 0.7, y, f"Item {name}", ha='left', va='center',
@@ -105,76 +108,57 @@ ax.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.08),
 ax.set_title("Bipartite graph for collaborative filtering\n"
              "User 2 shares Item A with User 1, who also liked Item B",
              fontsize=11, fontweight='bold', color=G0, pad=10)
-fig.tight_layout()
 save(fig, "fig18_5_bipartite_cf.png")
 
 
 # Figure 18.6 - LightGCN architecture
 print("Figure 18.6 ...")
 
-fig, ax = plt.subplots(figsize=(14, 5.5))
-fig.patch.set_facecolor(BG)
-ax.set_facecolor(BG)
-ax.axis('off')
-ax.set_xlim(0, 15.2)
-ax.set_ylim(0.3, 5.6)
+# The original ran 14 inches across: four conv layers, the combination and
+# the score all on one row. At 5.5 the row is folded, with the convolution
+# stack on top and the layer combination and score under it.
+fig, ax = figure(aspect=0.80)
+ax.set_facecolor(BG); ax.axis('off')
+ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
-Y = 3.15
-BUS = 1.1
-LW, LH = 1.2, 1.4
-layers_x = [3.5, 5.2, 6.9, 8.6]
-COMB_X, COMB_W, COMB_H = 10.5, 1.6, 1.5
-FIN_X = 12.6
+ax.text(0.5, 0.985, "Light graph convolution (no feature transform,\n"
+        "no non-linearity)", ha='center', va='top', fontsize=8,
+        color=INK_SOFT, fontstyle='italic', fontfamily=FONT, linespacing=1.4)
 
-rbox(ax, 1.2, 3.9, 1.8, 0.75, "User emb.\n$e_u^{(0)}$", fill=G1, fs=9)
-rbox(ax, 1.2, 2.4, 1.8, 0.75, "Item emb.\n$e_i^{(0)}$", fill=G3, fs=9)
+rbox(ax, 0.12, 0.78, 0.20, 0.10, "User\n$e_u^{(0)}$", fill=FILLS[0], fs=8)
+rbox(ax, 0.12, 0.60, 0.20, 0.10, "Item\n$e_i^{(0)}$", fill=FILLS[0], fs=8)
 
-JX = 2.55
-ax.plot([2.1, JX], [3.9, Y], color=G1, linewidth=1.4, zorder=2)
-ax.plot([2.1, JX], [2.4, Y], color=G3, linewidth=1.4, zorder=2)
-ax.plot([JX], [Y], marker='o', color=G2, markersize=5, zorder=3)
-arr(ax, JX, Y, layers_x[0] - LW / 2, Y, color=G2)
+LAYER_X = [0.36, 0.53, 0.70, 0.87]
+for k, x in enumerate(LAYER_X, start=1):
+    rbox(ax, x, 0.69, 0.145, 0.12, f"LGConv\nlayer {k}", fill=FILLS[1], fs=8)
+    if k > 1:
+        arr(ax, LAYER_X[k-2] + 0.073, 0.69, x - 0.073, 0.69)
+arr(ax, 0.22, 0.78, 0.287, 0.71)
+arr(ax, 0.22, 0.60, 0.287, 0.67)
 
-for k, x in enumerate(layers_x):
-    rbox(ax, x, Y, LW, LH, f"LGConv\nlayer {k + 1}", fill=G2, fs=8.5)
-    if k > 0:
-        arr(ax, layers_x[k - 1] + LW / 2, Y, x - LW / 2, Y, color=G2)
+# every layer's output feeds the combination, through a bus under the stack
+ax.plot([0.12, 0.87], [0.52, 0.52], color=G3, lw=0.9, zorder=1)
+for x in [0.12] + LAYER_X:
+    ax.plot([x, x], [0.555 if x in LAYER_X else 0.555, 0.52], color=G3,
+            lw=0.9, zorder=1)
+ax.text(0.5, 0.485, "$e^{(0)},\\ e^{(1)},\\ e^{(2)},\\ e^{(3)},\\ e^{(4)}$",
+        ha='center', va='top', fontsize=8.5, color=INK, fontfamily=FONT)
 
-taps = [(JX, Y)] + [(x, Y - LH / 2) for x in layers_x]
-for x, y in taps:
-    ax.plot([x, x], [y, BUS], color=G4, linewidth=1.2, zorder=1)
-ax.plot([JX, COMB_X], [BUS, BUS], color=G4, linewidth=1.2, zorder=1)
-arr(ax, COMB_X, BUS, COMB_X, Y - COMB_H / 2, color=G4, lw=1.2)
-ax.text((JX + layers_x[-1]) / 2, BUS - 0.35,
-        r"$e^{(0)},\ e^{(1)},\ e^{(2)},\ e^{(3)},\ e^{(4)}$",
-        ha='center', va='center', fontsize=10, color=G2)
+ax.text(0.5, 0.39, "Weighted sum, equally weighted "
+        "($\\alpha_k = 1/(K+1)$)", ha='center', va='top', fontsize=8,
+        color=INK_SOFT, fontstyle='italic', fontfamily=FONT)
+arr(ax, 0.5, 0.355, 0.5, 0.305)
+rbox(ax, 0.5, 0.245, 0.30, 0.10, "Layer combination\n(mean)", fill=FILLS[2],
+     fs=8)
+arr(ax, 0.42, 0.195, 0.30, 0.135)
+arr(ax, 0.58, 0.195, 0.70, 0.135)
+rbox(ax, 0.26, 0.085, 0.16, 0.085, "$e_u^{*}$", fill=FILLS[1], fs=9)
+rbox(ax, 0.74, 0.085, 0.16, 0.085, "$e_i^{*}$", fill=FILLS[1], fs=9)
+ax.text(0.5, 0.085, "$\\hat{y}_{ui} = e_u^{*} \\cdot e_i^{*}$", ha='center',
+        va='center', fontsize=9, color=INK, fontfamily=FONT)
 
-rbox(ax, COMB_X, Y, COMB_W, COMB_H, "Layer\ncombination\n(mean)",
-     fill=G0, fs=9)
-
-rbox(ax, FIN_X, 4.1, 1.2, 0.65, "$e_u^{*}$", fill=G1, fs=11)
-rbox(ax, FIN_X, 2.2, 1.2, 0.65, "$e_i^{*}$", fill=G3, fs=11)
-arr(ax, COMB_X + COMB_W / 2, Y + 0.35, FIN_X - 0.6, 4.1, color=G1)
-arr(ax, COMB_X + COMB_W / 2, Y - 0.35, FIN_X - 0.6, 2.2, color=G3)
-arr(ax, FIN_X + 0.6, 4.1, 13.6, Y + 0.25, color=G0)
-arr(ax, FIN_X + 0.6, 2.2, 13.6, Y - 0.25, color=G0)
-ax.text(13.7, Y, r"$\hat{y}_{ui} = e_u^{*} \cdot e_i^{*}$",
-        ha='left', va='center', fontsize=12, color=G0)
-
-ax.text(1.2, 5.0, "Input embeddings", ha='center', fontsize=9,
-        color=G3, fontstyle='italic')
-ax.text((layers_x[0] + layers_x[-1]) / 2, 5.0,
-        "Light graph convolution (no feature transformation, "
-        "no activation)", ha='center', fontsize=9, color=G3,
-        fontstyle='italic')
-ax.text(COMB_X, 5.0, r"Weighted sum, $\alpha_k = 1/(K+1)$",
-        ha='center', fontsize=9, color=G3, fontstyle='italic')
-ax.text(FIN_X + 0.9, 5.0, "Final embeddings and score", ha='center',
-        fontsize=9, color=G3, fontstyle='italic')
-
-ax.set_title("LightGCN architecture: light graph convolution and layer "
-             "combination", fontsize=12, fontweight='bold', color=G0, pad=10)
-fig.tight_layout()
+ax.set_title("LightGCN: light graph convolution and layer combination",
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig18_6_lightgcn_arch.png")
 
 print(f"\nDone: 2 diagrams saved to {OUT}")

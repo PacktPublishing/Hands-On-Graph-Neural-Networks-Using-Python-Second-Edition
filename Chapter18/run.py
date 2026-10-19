@@ -53,15 +53,17 @@ SEED = 0
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-plt.rcParams['font.family'] = 'DejaVu Sans'
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, G4 as BG4, G5 as BG5, G6 as BG6)
+
+apply()
 G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
 G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
 
 
 def save(fig, name):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=200, bbox_inches='tight',
-                facecolor='white')
-    plt.close(fig)
+    save_fig(fig, os.path.join(FIG_DIR, name))
     print(f"Saved figures/{name}")
 
 
@@ -119,7 +121,7 @@ print(f"Rating 0 (implicit): {n_zero:,} "
 print(f"Ratings 1-10 (explicit): {len(ratings) - n_zero:,}")
 
 rating_counts = ratings['Book-Rating'].value_counts().sort_index()
-fig, ax = plt.subplots(figsize=(10, 5))
+fig, ax = plt.subplots(figsize=(5.50, 2.75))
 ax.bar(rating_counts.index, rating_counts.values,
        color=[G0 if k == 0 else G2 for k in rating_counts.index],
        alpha=0.88, width=0.7)
@@ -130,14 +132,13 @@ ax.set_title('Rating distribution\n'
 ax.set_xticks(list(rating_counts.index))
 ax.spines[['top', 'right']].set_visible(False)
 ax.grid(axis='y', linestyle=':', alpha=0.4)
-fig.tight_layout()
 save(fig, 'fig18_1_rating_distribution.png')
 
 isbn_counts = ratings.groupby('ISBN').size()
 count_occ_isbn = isbn_counts.value_counts().sort_index()
 count_occ_isbn = count_occ_isbn.reindex(range(1, 16), fill_value=0)
 
-fig, ax = plt.subplots(figsize=(10, 5))
+fig, ax = plt.subplots(figsize=(5.50, 2.75))
 ax.bar(range(1, 16), count_occ_isbn.values, color=G2, alpha=0.88, width=0.7)
 ax.set_xlabel('Number of times an ISBN appears in ratings')
 ax.set_ylabel('Count')
@@ -145,22 +146,20 @@ ax.set_xticks(range(1, 16))
 ax.set_title('Distribution of book rating counts (first 15 values)')
 ax.spines[['top', 'right']].set_visible(False)
 ax.grid(axis='y', linestyle=':', alpha=0.4)
-fig.tight_layout()
 save(fig, 'fig18_2_book_rating_counts.png')
 
 userid_counts = ratings.groupby('User-ID').size()
 count_occ_user = userid_counts.value_counts().sort_index()
 count_occ_user = count_occ_user.reindex(range(1, 16), fill_value=0)
 
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar(range(1, 16), count_occ_user.values, color=G3, alpha=0.88, width=0.7)
+fig, ax = plt.subplots(figsize=(5.50, 2.75))
+ax.bar(range(1, 16), count_occ_user.values, color=INK_SOFT, alpha=0.88, width=0.7)
 ax.set_xlabel('Number of times a User-ID appears in ratings')
 ax.set_ylabel('Count')
 ax.set_xticks(range(1, 16))
 ax.set_title('Distribution of user rating counts (first 15 values)')
 ax.spines[['top', 'right']].set_visible(False)
 ax.grid(axis='y', linestyle=':', alpha=0.4)
-fig.tight_layout()
 save(fig, 'fig18_3_user_rating_counts.png')
 
 print(f"\nBooks rated once: {int((isbn_counts == 1).sum()):,} "
@@ -212,7 +211,7 @@ for b in sorted(book_nodes, key=lambda b: -G_sub.degree(b)):
         print(f"  {G_sub.degree(b):>3}  {bookid_title.get(b, b)}")
 
 pos = nx.spring_layout(G_sub, seed=SEED, k=0.35, iterations=200)
-fig, ax = plt.subplots(figsize=(10, 9))
+fig, ax = plt.subplots(figsize=(5.50, 4.95))
 ax.axis('off')
 nx.draw_networkx_edges(G_sub, pos, ax=ax, edge_color=G4, width=0.6,
                        alpha=0.7)
@@ -240,7 +239,6 @@ ax.legend(handles=handles, loc='lower left', fontsize=9, framealpha=0.95,
           edgecolor=G5)
 ax.set_title('Book-Crossing: 20 readers of The Da Vinci Code '
              'and every book they rated')
-fig.tight_layout()
 save(fig, 'fig18_4_bookcrossing_subgraph.png')
 
 
@@ -500,28 +498,29 @@ if device.type == 'cuda':
           f"{torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 print(f"Peak process memory (RSS): {peak_rss_gb():.2f} GB")
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+# Two panels across leave each 2.7 inches, and the right-hand title did
+# not fit in that. Taller, with the title split in two.
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.50, 2.90))
 ax1.plot(history['epoch'], history['train_loss'], color=G0, linewidth=2.0,
          marker='o', markersize=5, label='Train')
-ax1.plot(history['epoch'], history['val_loss'], color=G3, linewidth=2.0,
+ax1.plot(history['epoch'], history['val_loss'], color=INK_SOFT, linewidth=2.0,
          marker='s', markersize=5, linestyle='--', label='Val')
 ax1.set_xlabel('Epoch')
 ax1.set_ylabel('BPR loss')
-ax1.set_title('Training and validation loss')
+ax1.set_title('Training and\nvalidation loss', fontsize=9)
 ax1.legend()
 ax1.spines[['top', 'right']].set_visible(False)
 ax1.grid(linestyle=':', alpha=0.4)
 ax2.plot(history['epoch'], history['recall'], color=G0, linewidth=2.0,
          marker='o', markersize=5, label=f'Recall@{K}')
-ax2.plot(history['epoch'], history['ndcg'], color=G3, linewidth=2.0,
+ax2.plot(history['epoch'], history['ndcg'], color=INK_SOFT, linewidth=2.0,
          marker='s', markersize=5, linestyle='--', label=f'NDCG@{K}')
 ax2.set_xlabel('Epoch')
 ax2.set_ylabel('Metric value')
-ax2.set_title(f'Validation Recall@{K} and NDCG@{K}')
+ax2.set_title(f'Validation Recall@{K}\nand NDCG@{K}', fontsize=9)
 ax2.legend()
 ax2.spines[['top', 'right']].set_visible(False)
 ax2.grid(linestyle=':', alpha=0.4)
-fig.tight_layout()
 save(fig, 'fig18_7_training_metrics.png')
 
 
