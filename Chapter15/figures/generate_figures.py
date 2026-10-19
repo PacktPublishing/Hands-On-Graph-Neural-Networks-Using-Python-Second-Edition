@@ -21,59 +21,68 @@ import networkx as nx
 SEED = 0
 OUT = os.path.dirname(os.path.abspath(__file__))
 
-FONT = 'DejaVu Sans'
-BG = 'white'
-G0 = '#111111'; G1 = '#333333'; G2 = '#555555'
-G3 = '#777777'; G4 = '#999999'; G5 = '#BBBBBB'; G6 = '#DDDDDD'
-plt.rcParams['font.family'] = FONT
+import sys
+
+sys.path.insert(0, os.path.join(OUT, '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, FILLS, G1, G2, G3, G4, G5, G6)
+from matplotlib.patches import Rectangle
+
+plt = apply()
+G0 = '#111111'
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(OUT, name))
     print(f'  saved {name}')
 
 
-def rbox(ax, x, y, w, h, label, fill=G2, fc='white', fs=9, r=0.04):
-    ax.add_patch(FancyBboxPatch((x - w/2, y - h/2), w, h,
-                                boxstyle=f'round,pad=0.02,rounding_size={r}',
-                                facecolor=fill, edgecolor=G4, linewidth=1.1,
-                                zorder=3))
-    ax.text(x, y, label, ha='center', va='center', fontsize=fs, color=fc,
-            fontweight='bold', linespacing=1.35, multialignment='center',
-            zorder=4)
+def rbox(ax, x, y, w, h, label, fill=G6, fc=None, fs=8, r=0.04):
+    """Square corners, dark type on a light fill; `fc` is ignored."""
+    ax.add_patch(Rectangle((x - w/2, y - h/2), w, h, facecolor=fill,
+                           edgecolor=G3, linewidth=0.8, zorder=3))
+    ax.text(x, y, label, ha='center', va='center', fontsize=fs, color=INK,
+            fontweight='bold', linespacing=1.5, multialignment='center',
+            fontfamily=FONT, zorder=4)
 
 
-def arr(ax, x1, y1, x2, y2, color=G2, lw=1.4):
+def arr(ax, x1, y1, x2, y2, color=G3, lw=1.1):
     ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
                 arrowprops=dict(arrowstyle='-|>', color=color, lw=lw,
-                                mutation_scale=12), zorder=2)
+                                mutation_scale=9), zorder=2)
 
 
 print('Figure 15.1 ...')
 
-fig, ax = plt.subplots(figsize=(13, 4.2))
-fig.patch.set_facecolor(BG)
-ax.axis('off')
-ax.set_xlim(0, 13)
-ax.set_ylim(2.2, 6.0)
+# Four families across needed 13 inches; at 5.5 each would get 1.4, less than
+# "Perturbation-based" is wide. Two by two put the root's arrows through the
+# upper boxes, so the families are stacked and fed from one spine.
+fig, ax = figure(aspect=0.74)
+ax.axis('off'); ax.set_facecolor(BG)
+ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
-rbox(ax, 6.5, 5.4, 3.0, 0.8, 'GNN Explanation\nTechniques',
-     fill=G0, fs=11)
+rbox(ax, 0.5, 0.93, 0.50, 0.095, 'GNN explanation techniques',
+     fill=FILLS[2], fs=9)
 
-for x, label, fill in [
-    (1.5,  'Gradient-based\ne.g. Integrated\nGradients', G1),
-    (4.5,  'Perturbation-\nbased\ne.g. GNNExplainer', G2),
-    (8.5,  'Decomposition\ne.g. GNN-LRP', G3),
-    (11.5, 'Surrogate\ne.g. GraphLIME', G4),
-]:
-    rbox(ax, x, 3.5, 2.2, 1.4, label, fill=fill, fs=9)
-    arr(ax, 6.5, 5.0, x, 4.2, color=fill)
-
-for x in (1.5, 4.5):
-    ax.text(x, 2.55, '\u2713 Chapter 15', ha='center', fontsize=8.5,
-            color=G0, fontweight='bold')
+FAMILIES = [
+    ('Gradient-based \u2014 e.g. Integrated Gradients', True),
+    ('Perturbation-based \u2014 e.g. GNNExplainer', True),
+    ('Decomposition \u2014 e.g. GNN-LRP', False),
+    ('Surrogate \u2014 e.g. GraphLIME', False),
+]
+TOP, STEP, BH = 0.72, 0.205, 0.105
+SPINE_X = 0.10
+ax.plot([SPINE_X, SPINE_X], [0.885, TOP - 3 * STEP], color=G3, lw=1.0,
+        zorder=1)
+ax.plot([SPINE_X, 0.5], [0.885, 0.885], color=G3, lw=1.0, zorder=1)
+for i, (label, in_chapter) in enumerate(FAMILIES):
+    y = TOP - i * STEP
+    rbox(ax, 0.56, y, 0.80, BH, label, fill=FILLS[1], fs=8)
+    arr(ax, SPINE_X, y, 0.155, y)
+    if in_chapter:
+        ax.text(0.56, y - 0.085, '\u2713 covered in this chapter',
+                ha='center', va='center', fontsize=8, color=INK_SOFT,
+                fontfamily=FONT, fontstyle='italic')
 
 save(fig, 'fig15_1_taxonomy.png')
 
@@ -89,7 +98,7 @@ mask = {(0, 1): 0.9, (0, 2): 0.9, (1, 2): 0.85, (0, 3): 0.3,
         (2, 4): 0.2, (3, 5): 0.1, (4, 6): 0.1, (5, 6): 0.1}
 kept = [e for e, m in mask.items() if m > 0.5]
 kept_nodes = sorted({n for e in kept for n in e})
-SHADES = [G5, G4, G3, G2, G1]
+SHADES = [G6, G5, G4, G3, G2]
 
 
 def shade(value):
@@ -98,21 +107,20 @@ def shade(value):
 
 def draw_nodes(ax, nodes):
     nx.draw_networkx_nodes(G, pos, nodelist=nodes, ax=ax,
-                           node_color=[G0 if n == target else G3
+                           node_color=[G4 if n == target else G6
                                        for n in nodes],
-                           node_size=400, edgecolors='white', linewidths=1.2)
+                           node_size=170, edgecolors=G3, linewidths=0.7)
     nx.draw_networkx_labels(G, pos, labels={n: str(n) for n in nodes}, ax=ax,
-                            font_size=10, font_color='white',
+                            font_size=8, font_color=INK,
                             font_weight='bold', font_family=FONT)
 
 
-fig, axes = plt.subplots(1, 3, figsize=(13, 5))
-fig.patch.set_facecolor(BG)
+fig, axes = figure(aspect=0.44, ncols=3)
 
 ax = axes[0]
 nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G5, width=1.0)
 draw_nodes(ax, list(G.nodes()))
-ax.set_title('Full graph', fontsize=11, fontweight='bold', color=G0)
+ax.set_title('Full graph', fontsize=9, fontweight='bold', color=INK)
 
 ax = axes[1]
 edges = list(mask)
@@ -120,12 +128,12 @@ nx.draw_networkx_edges(G, pos, edgelist=edges, ax=ax,
                        edge_color=[shade(mask[e]) for e in edges],
                        width=[0.5 + 3.5 * mask[e] for e in edges])
 draw_nodes(ax, list(G.nodes()))
-ax.set_title('Edge mask', fontsize=11, fontweight='bold', color=G0)
+ax.set_title('Edge mask', fontsize=9, fontweight='bold', color=INK)
 
 ax = axes[2]
 nx.draw_networkx_edges(G, pos, edgelist=kept, ax=ax, edge_color=G1, width=3.5)
 draw_nodes(ax, kept_nodes)
-ax.set_title('Explanation subgraph', fontsize=11, fontweight='bold', color=G0)
+ax.set_title('Explanation subgraph', fontsize=9, fontweight='bold', color=INK)
 
 xs = [p[0] for p in pos.values()]
 ys = [p[1] for p in pos.values()]
@@ -135,7 +143,6 @@ for ax in axes:
     ax.set_xlim(min(xs) - 0.2, max(xs) + 0.2)
     ax.set_ylim(min(ys) - 0.2, max(ys) + 0.2)
 
-fig.tight_layout()
 save(fig, 'fig15_2_gnnexplainer_schema.png')
 
 print(f'\nFigures saved to {OUT}')

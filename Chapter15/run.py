@@ -21,6 +21,7 @@ figures/generate_figures.py.
 """
 
 import os
+import sys
 import random
 import statistics
 
@@ -52,6 +53,14 @@ SEED = 0
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIG_DIR = os.path.join(HERE, 'figures')
 os.makedirs(FIG_DIR, exist_ok=True)
+
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, INK, INK_SOFT,
+                       G3 as BG3, G4 as BG4, G5 as BG5, G6 as BG6)
+
+apply()
+
+
 
 
 def set_seed(seed):
@@ -412,7 +421,7 @@ print('=' * 70)
 FONT = 'DejaVu Sans'
 G0 = '#111111'; G1 = '#333333'; G2 = '#555555'
 G3 = '#777777'; G4 = '#999999'; G5 = '#BBBBBB'; G6 = '#DDDDDD'
-SHADES = [G5, G4, G3, G2, G1]
+SHADES = [BG6, BG5, BG4, BG3, G2]
 plt.rcParams['font.family'] = FONT
 
 
@@ -420,10 +429,8 @@ def shade(value):
     return SHADES[min(int(value * len(SHADES)), len(SHADES) - 1)]
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=dpi, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(FIG_DIR, name))
     print(f'  saved figures/{name}')
 
 
@@ -432,30 +439,32 @@ def plot_molecule(atoms, bonds, name):
     G.add_nodes_from(range(len(atoms)))
     G.add_edges_from(bonds.keys())
     pos = nx.kamada_kawai_layout(G)
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = figure(aspect=0.74)
     ax.axis('off')
     for (u, v), m in bonds.items():
         (x0, y0), (x1, y1) = pos[u], pos[v]
-        ax.plot([x0, x1], [y0, y1], color=G0 if m > 0.5 else G4,
-                linewidth=0.8 + 4.0 * m,
+        ax.plot([x0, x1], [y0, y1], color=G2 if m > 0.5 else BG5,
+                linewidth=0.6 + 2.6 * m,
                 linestyle='-' if m > 0.5 else '--', zorder=1)
     for n, (x, y) in pos.items():
-        ax.add_patch(plt.Circle((x, y), 0.06, color=G2, zorder=3))
-        ax.text(x, y, atoms[n], ha='center', va='center', fontsize=10,
-                color='white', fontweight='bold', zorder=4)
+        ax.add_patch(plt.Circle((x, y), 0.055, facecolor=BG5, edgecolor=BG3,
+                                linewidth=0.7, zorder=3))
+        ax.text(x, y, atoms[n], ha='center', va='center', fontsize=8,
+                color=INK, fontweight='bold', zorder=4)
         bond_angles = [np.arctan2(pos[m][1] - y, pos[m][0] - x)
                        for m in G.neighbors(n)]
         candidates = np.linspace(0, 2 * np.pi, 24, endpoint=False)
         angle = max(candidates, key=lambda t: min(
             abs((t - b + np.pi) % (2 * np.pi) - np.pi) for b in bond_angles))
-        ax.text(x + 0.1 * np.cos(angle), y + 0.1 * np.sin(angle), str(n),
-                ha='center', va='center', fontsize=7, color=G3, zorder=4)
+        ax.text(x + 0.095 * np.cos(angle), y + 0.095 * np.sin(angle), str(n),
+                ha='center', va='center', fontsize=8, color=INK_SOFT,
+                zorder=4)
     ax.legend(handles=[
-        Line2D([0], [0], color=G0, linewidth=4.0, label='Edge mask > 0.5'),
-        Line2D([0], [0], color=G4, linewidth=1.2, linestyle='--',
+        Line2D([0], [0], color=G2, linewidth=2.6, label='Edge mask > 0.5'),
+        Line2D([0], [0], color=BG5, linewidth=1.0, linestyle='--',
                label='Edge mask \u2264 0.5'),
-    ], loc='upper center', bbox_to_anchor=(0.5, 0.0), ncol=2, fontsize=9,
-       framealpha=0.95, edgecolor=G5)
+    ], loc='upper center', bbox_to_anchor=(0.5, 0.02), ncol=2, fontsize=8,
+       frameon=False, handlelength=1.6)
     ax.set_aspect('equal')
     ax.autoscale_view()
     save(fig, name)
@@ -487,33 +496,31 @@ def plot_attribution(target, attr_node, attr_edge, labels, edge_index, name,
     G.add_nodes_from(node_list)
     G.add_edges_from(edges.keys())
     pos = nx.spring_layout(G, seed=SEED, k=0.9)
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = figure(aspect=0.80)
     ax.axis('off')
     for (u, v), a in edges.items():
         (x0, y0), (x1, y1) = pos[u], pos[v]
         ax.plot([x0, x1], [y0, y1], color=shade(a),
-                linewidth=0.5 + 3.5 * a, zorder=1)
+                linewidth=0.4 + 2.4 * a, zorder=1)
     for n in node_list:
         x, y = pos[n]
         a = attr_node[n].item()
-        ax.add_patch(plt.Circle((x, y), 0.045 + 0.04 * a,
-                                color=G0 if n == target else shade(a),
-                                zorder=3))
+        ax.add_patch(plt.Circle((x, y), 0.040 + 0.03 * a,
+                                facecolor=BG4 if n == target else shade(a),
+                                edgecolor=BG3, linewidth=0.6, zorder=3))
         if n == target:
-            ax.add_patch(plt.Circle((x, y), 0.13, fill=False, edgecolor=G0,
-                                    linewidth=2.0, zorder=4))
-        ax.text(x, y + 0.11 + 0.04 * a, f'{n} ({int(labels[n])})',
-                ha='center', fontsize=7.5, color=G1, zorder=5,
+            ax.add_patch(plt.Circle((x, y), 0.11, fill=False, edgecolor=INK,
+                                    linewidth=1.2, zorder=4))
+        ax.text(x, y + 0.10 + 0.03 * a, f'{n} ({int(labels[n])})',
+                ha='center', fontsize=8, color=INK_SOFT, zorder=5,
                 bbox=dict(facecolor='white', edgecolor='none', pad=0.5))
     ax.legend(handles=[
-        Patch(color=G0, label=f'Target node {target} '
-                              f'(class {int(labels[target])})'),
-        Patch(color=G1, label='High attribution'),
-        Patch(color=G5, label='Low attribution'),
-        Line2D([0], [0], color=G1, linewidth=3.5,
-               label='High edge attribution'),
-    ], loc='upper center', bbox_to_anchor=(0.5, 0.0), ncol=2, fontsize=8.5,
-       framealpha=0.95, edgecolor=G5)
+        Patch(facecolor=BG4, edgecolor=BG3,
+              label=f'Target {target} (class {int(labels[target])})'),
+        Patch(facecolor=G2, edgecolor=BG3, label='High attribution'),
+        Patch(facecolor=BG6, edgecolor=BG3, label='Low attribution'),
+    ], loc='upper center', bbox_to_anchor=(0.5, 0.03), ncol=3, fontsize=8,
+       frameon=False, handlelength=1.2, handletextpad=0.4)
     ax.set_aspect('equal')
     ax.autoscale_view()
     save(fig, name)
