@@ -12,54 +12,44 @@ Run: python generate_figures.py
 """
 
 import os
+import sys
 
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch
+from matplotlib.patches import Rectangle
 import networkx as nx
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, FILLS, G1, G2, G3, G4, G5, G6)
+
+plt = apply()
+G0 = "#111111"
 SEED = 0
 np.random.seed(SEED)
-
 OUT = os.path.dirname(os.path.abspath(__file__))
 
-FONT = "DejaVu Sans"
-BG = "white"
-G0 = "#111111"
-G1 = "#333333"
-G2 = "#555555"
-G3 = "#777777"
-G4 = "#999999"
-G5 = "#BBBBBB"
-G6 = "#DDDDDD"
 
-
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(OUT, name))
     print(f"  saved {name}")
 
 
-def rbox(ax, x, y, w, h, lines, fill, fc='white', fs=11, line_gap=0.30):
-    ax.add_patch(FancyBboxPatch((x - w/2, y - h/2), w, h,
-                                boxstyle="round,pad=0.02,rounding_size=0.06",
-                                facecolor=fill, edgecolor=G3,
-                                linewidth=1.2, zorder=3))
-    n = len(lines)
-    for i, line in enumerate(lines):
-        ax.text(x, y + (n - 1) / 2 * line_gap - i * line_gap, line,
-                ha='center', va='center', fontsize=fs, color=fc,
-                fontweight='bold', fontfamily=FONT, zorder=4)
+def rbox(ax, x, y, w, h, lines, fill, fc=None, fs=8, line_gap=None):
+    """Square corners, dark type on a light fill; `fc` and `line_gap` are
+    accepted and ignored, matplotlib spaces the lines itself."""
+    ax.add_patch(Rectangle((x - w/2, y - h/2), w, h, facecolor=fill,
+                           edgecolor=G3, linewidth=0.8, zorder=3))
+    ax.text(x, y, "\n".join(lines), ha='center', va='center', fontsize=fs,
+            color=INK, fontweight='bold', fontfamily=FONT, linespacing=1.5,
+            zorder=4)
 
 
-def arr(ax, x1, y1, x2, y2, color=G2, lw=2.0):
+def arr(ax, x1, y1, x2, y2, color=G3, lw=1.1):
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
                 arrowprops=dict(arrowstyle="-|>", color=color,
-                                lw=lw, mutation_scale=16), zorder=2)
+                                lw=lw, mutation_scale=9), zorder=2)
 
 
 # =============================================================================
@@ -77,9 +67,11 @@ G = nx.Graph()
 G.add_edges_from(edges)
 
 hops = nx.single_source_shortest_path_length(G, 0)
-SHADE = {0: G0, 1: G2, 2: G4, 3: G6}
-SIZE = {0: 1000, 1: 700, 2: 600, 3: 500}
-LABEL = {0: 'white', 1: 'white', 2: 'white', 3: G0}
+# Light fills with dark numbers: white digits on a mid grey close up in
+# print at this size.
+SHADE = {0: G4, 1: G5, 2: G6, 3: '#F0F0F0'}
+SIZE = {0: 330, 1: 250, 2: 220, 3: 190}
+LABEL = {0: INK, 1: INK, 2: INK, 3: INK}
 
 pos = {
     0: (0.0, 0.0),
@@ -89,34 +81,33 @@ pos = {
     12: (1.2, -3.2), 13: (2.6, -3.2),
 }
 
-fig, ax = plt.subplots(figsize=(10, 6.5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
+fig, ax = figure(aspect=0.64)
+ax.set_facecolor(BG); ax.axis('off')
 
 edge_color = [G1 if min(hops[u], hops[v]) == 0 else
               G3 if min(hops[u], hops[v]) == 1 else G5 for u, v in G.edges()]
-edge_width = [2.2 if min(hops[u], hops[v]) == 0 else
-              1.6 if min(hops[u], hops[v]) == 1 else 1.0 for u, v in G.edges()]
+edge_width = [1.5 if min(hops[u], hops[v]) == 0 else
+              1.1 if min(hops[u], hops[v]) == 1 else 0.7 for u, v in G.edges()]
 nx.draw_networkx_edges(G, pos, ax=ax, edge_color=edge_color, width=edge_width)
 nx.draw_networkx_nodes(G, pos, ax=ax,
                        node_color=[SHADE[hops[n]] for n in G.nodes()],
                        node_size=[SIZE[hops[n]] for n in G.nodes()],
-                       edgecolors=G3, linewidths=1.0)
+                       edgecolors=G3, linewidths=0.7)
 for n, (x, y) in pos.items():
-    ax.text(x, y, str(n), ha='center', va='center', fontsize=10,
+    ax.text(x, y, str(n), ha='center', va='center', fontsize=7.5,
             fontweight='bold', color=LABEL[hops[n]], fontfamily=FONT, zorder=5)
 
 handles = [
-    mpatches.Patch(facecolor=G0, edgecolor=G3, label='Target node (0)'),
-    mpatches.Patch(facecolor=G2, edgecolor=G3, label='1-hop neighbors'),
-    mpatches.Patch(facecolor=G4, edgecolor=G3, label='2-hop neighbors'),
-    mpatches.Patch(facecolor=G6, edgecolor=G3, label='3-hop neighbors'),
+    mpatches.Patch(facecolor=SHADE[0], edgecolor=G3, label='Target node (0)'),
+    mpatches.Patch(facecolor=SHADE[1], edgecolor=G3, label='1 hop'),
+    mpatches.Patch(facecolor=SHADE[2], edgecolor=G3, label='2 hops'),
+    mpatches.Patch(facecolor=SHADE[3], edgecolor=G3, label='3 hops'),
 ]
-ax.legend(handles=handles, loc='upper right', fontsize=10,
-          framealpha=0.95, edgecolor=G5)
+ax.legend(handles=handles, loc='upper right', fontsize=8,
+          frameon=False, handlelength=1.2, handletextpad=0.4)
 ax.set_xlim(-3.8, 3.8); ax.set_ylim(-3.7, 0.5)
 ax.set_title("1-hop, 2-hop, and 3-hop neighbors of node 0",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-fig.tight_layout()
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig12_1_hops.png")
 
 
@@ -132,8 +123,8 @@ upper = np.triu(rng.random((n, n)) < 0.45, k=1)
 A = (upper | upper.T).astype(int)
 Z = 0.15 + 0.7 * rng.random((n, d))
 
-fig, ax = plt.subplots(figsize=(11, 5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
+fig, ax = figure(aspect=0.46)
+ax.set_facecolor(BG); ax.axis('off')
 ax.set_xlim(0, 11); ax.set_ylim(0, 5.2)
 
 CELL = 0.5
@@ -149,27 +140,27 @@ def draw_matrix(ax, x0, y0, values, label, dims):
     ax.add_patch(plt.Rectangle((x0, y0), cols * CELL, rows * CELL,
                                facecolor='none', edgecolor=G1, linewidth=1.5))
     ax.text(x0 + cols * CELL / 2, y0 + rows * CELL + 0.2, label,
-            ha='center', va='bottom', fontsize=12, fontweight='bold',
-            color=G0, fontfamily=FONT)
+            ha='center', va='bottom', fontsize=10, fontweight='bold',
+            color=INK, fontfamily=FONT)
     ax.text(x0 + cols * CELL / 2, y0 - 0.25, dims, ha='center', va='top',
-            fontsize=10, color=G3, fontstyle='italic', fontfamily=FONT)
+            fontsize=8, color=INK_SOFT, fontstyle='italic', fontfamily=FONT)
 
 
 mid = 2.6
 draw_matrix(ax, 0.4, mid - n * CELL / 2, np.where(A == 1, 0.2, 0.87), "A", "n × n")
-ax.text(3.35, mid, "≈", ha='center', va='center', fontsize=30,
-        color=G0, fontfamily=FONT)
+ax.text(3.35, mid, "≈", ha='center', va='center', fontsize=18,
+        color=INK, fontfamily=FONT)
 draw_matrix(ax, 4.0, mid - n * CELL / 2, Z, "Z", "n × d")
-ax.text(6.0, mid, "×", ha='center', va='center', fontsize=26,
-        color=G0, fontfamily=FONT)
+ax.text(6.0, mid, "×", ha='center', va='center', fontsize=16,
+        color=INK, fontfamily=FONT)
 draw_matrix(ax, 6.6, mid - d * CELL / 2, Z.T, "Zᵀ", "d × n")
 
 ax.text(5.5, 0.15,
         "n = number of nodes,  d = embedding dimension (d ≪ n)",
-        ha='center', fontsize=10, color=G3, fontstyle='italic', fontfamily=FONT)
+        ha='center', fontsize=8, color=INK_SOFT, fontstyle='italic',
+        fontfamily=FONT)
 ax.set_title("Matrix factorization: A ≈ Z × Zᵀ",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-fig.tight_layout()
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig12_2_matrix_factorization.png")
 
 
@@ -179,49 +170,50 @@ save(fig, "fig12_2_matrix_factorization.png")
 
 print("Figure 12.3 …")
 
-fig, ax = plt.subplots(figsize=(14, 5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 14); ax.set_ylim(0, 5)
+# Five stages in a row needed 14 inches. They run down the page instead: the
+# input graph at the top, the three steps under it, the answer at the bottom.
+# Each step carries its detail as a third line inside the box; set underneath,
+# the detail landed on the arrow to the next step.
+fig, ax = figure(aspect=1.00)
+ax.set_facecolor(BG); ax.axis('off')
+ax.set_xlim(0, 1); ax.set_ylim(0, 1)
 
 Gs = nx.Graph()
 Gs.add_edges_from([(0, 2), (2, 3), (3, 1), (2, 4), (4, 3), (0, 5), (5, 4)])
-pos_s = {0: (0.45, 3.3), 1: (1.75, 3.3), 2: (0.75, 2.4),
-         3: (1.45, 2.4), 4: (1.1, 1.6), 5: (0.3, 1.6)}
-nx.draw_networkx_edges(Gs, pos_s, ax=ax, edge_color=G4, width=1.2)
+# The panel is square, so these positions are not stretched by the aspect.
+pos_s = {0: (0.38, 0.955), 1: (0.62, 0.955), 2: (0.44, 0.912),
+         3: (0.57, 0.912), 4: (0.50, 0.872), 5: (0.36, 0.872)}
+nx.draw_networkx_edges(Gs, pos_s, ax=ax, edge_color=G4, width=0.8)
 ax.plot([pos_s[0][0], pos_s[1][0]], [pos_s[0][1], pos_s[1][1]],
-        linestyle='--', color=G0, linewidth=2.0, zorder=2)
+        linestyle='--', color=INK, linewidth=1.4, zorder=2)
 nx.draw_networkx_nodes(Gs, pos_s, ax=ax,
-                       node_color=[G0 if v in (0, 1) else G5 for v in Gs.nodes()],
-                       node_size=260, edgecolors=G3, linewidths=0.8)
-ax.text(1.1, 4.15, "Input graph", ha='center', fontsize=11,
-        fontweight='bold', color=G0, fontfamily=FONT)
-ax.text(1.1, 0.95, "dashed line = candidate link\nbetween the two dark nodes",
-        ha='center', va='top', fontsize=9, color=G3, fontstyle='italic',
-        fontfamily=FONT)
+                       node_color=[G4 if v in (0, 1) else G6 for v in Gs.nodes()],
+                       node_size=70, edgecolors=G3, linewidths=0.7)
+ax.text(0.12, 0.93, "Input graph", ha='center', va='center', fontsize=9,
+        fontweight='bold', color=INK, fontfamily=FONT)
+ax.text(0.86, 0.93, "dashed line =\ncandidate link", ha='center', va='center',
+        fontsize=8, color=INK_SOFT, fontstyle='italic', fontfamily=FONT,
+        linespacing=1.4)
 
-boxes = [
-    (4.0, ["Step 1", "Enclosing subgraph", "extraction"], G1,
-     "k-hop neighborhood around\neach candidate link"),
-    (7.3, ["Step 2", "Node information", "matrix construction"], G2,
-     "DRNL labels + optional\nembeddings + node features"),
-    (10.6, ["Step 3", "GNN training", "(DGCNN)"], G3,
-     "Sort pooling, 1D convolutions,\ndense layers"),
+STEPS = [
+    (0.655, "Step 1  Enclosing subgraph extraction\n"
+            "k-hop neighborhood around each candidate link"),
+    (0.435, "Step 2  Node information matrix\n"
+            "DRNL labels + optional embeddings + node features"),
+    (0.215, "Step 3  GNN training (DGCNN)\n"
+            "sort pooling, 1D convolutions, dense layers"),
 ]
-for x, lines, fill, sub in boxes:
-    rbox(ax, x, 2.6, 2.6, 1.7, lines, fill)
-    ax.text(x, 1.45, sub, ha='center', va='top', fontsize=9.5, color=G3,
-            fontstyle='italic', fontfamily=FONT)
+for y, text in STEPS:
+    rbox(ax, 0.5, y, 0.84, 0.115, text.split("\n"), FILLS[1], fs=8)
 
-arr(ax, 2.15, 2.6, 2.65, 2.6)
-arr(ax, 5.35, 2.6, 5.95, 2.6)
-arr(ax, 8.65, 2.6, 9.25, 2.6)
-arr(ax, 11.95, 2.6, 12.55, 2.6)
-ax.text(13.3, 2.6, "Link\nprobability", ha='center', va='center',
-        fontsize=11, color=G0, fontweight='bold', fontfamily=FONT)
+arr(ax, 0.5, 0.835, 0.5, 0.720)
+arr(ax, 0.5, 0.593, 0.5, 0.500)
+arr(ax, 0.5, 0.373, 0.5, 0.280)
+arr(ax, 0.5, 0.153, 0.5, 0.078)
+rbox(ax, 0.5, 0.035, 0.40, 0.070, ["Link probability"], FILLS[2], fs=8.5)
 
-ax.set_title("The SEAL framework: three steps from a candidate link to a link probability",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-fig.tight_layout()
+ax.set_title("The SEAL framework: from a candidate link to a probability",
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig12_3_seal_framework.png")
 
 print(f"\nAll figures saved to {OUT}")
