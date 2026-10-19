@@ -12,6 +12,7 @@ Run: python run.py
 
 import os
 import platform
+import sys
 import time
 
 import numpy as np
@@ -36,18 +37,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIG_DIR = os.path.join(HERE, 'figures')
 os.makedirs(FIG_DIR, exist_ok=True)
 
-FONT = "DejaVu Sans"
-BG = "white"
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, G4, G5 as BG5, G6 as BG6)
+
+apply()
 G0 = "#111111"
 G1 = "#333333"
 G3 = "#777777"
 G5 = "#BBBBBB"
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(FIG_DIR, name))
     print(f"Saved figures/{name}")
 
 
@@ -281,15 +283,14 @@ print(f'\nFigure 11.5 graph: dataset index {idx}, '
       f'{G_prot.number_of_nodes()} nodes, {G_prot.number_of_edges()} edges, '
       f'label {int(sample.y)}')
 
-fig, ax = plt.subplots(figsize=(7, 6))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
+fig, ax = figure(aspect=0.80)
+ax.set_facecolor(BG); ax.axis('off')
 pos = nx.spring_layout(G_prot, seed=0)
-nx.draw_networkx_edges(G_prot, pos, ax=ax, edge_color=G3, width=1.0)
-nx.draw_networkx_nodes(G_prot, pos, ax=ax, node_color=G1,
-                       node_size=160, edgecolors='white', linewidths=0.8)
+nx.draw_networkx_edges(G_prot, pos, ax=ax, edge_color=G3, width=0.7)
+nx.draw_networkx_nodes(G_prot, pos, ax=ax, node_color=BG5,
+                       node_size=55, edgecolors=G3, linewidths=0.5)
 ax.set_title('A protein graph from the PROTEINS dataset',
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-fig.tight_layout()
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, 'fig11_5_protein_graph.png')
 
 
@@ -300,10 +301,9 @@ save(fig, 'fig11_5_protein_graph.png')
 def plot_classification_grid(model, title, filename):
     model.eval()
     samples = list(test_dataset[-16:])
-    fig, axes = plt.subplots(4, 4, figsize=(12, 12))
-    fig.patch.set_facecolor(BG)
-    fig.suptitle(title, fontsize=13, fontweight='bold',
-                 color=G0, fontfamily=FONT, y=1.01)
+    fig, axes = figure(aspect=1.06, nrows=4, ncols=4)
+    fig.suptitle(title, fontsize=10.5, fontweight='bold',
+                 color=INK, fontfamily=FONT)
     wrong = []
     for i, data in enumerate(samples):
         with torch.no_grad():
@@ -318,19 +318,20 @@ def plot_classification_grid(model, title, filename):
         nx.draw_networkx(G,
                          pos=nx.spring_layout(G, seed=0),
                          with_labels=False,
-                         node_color=G0 if correct else G5,
-                         node_size=25,
+                         node_color=G4 if correct else BG6,
+                         node_size=10,
                          edge_color=G3,
-                         width=0.7,
+                         width=0.4,
                          ax=ax)
     handles = [
-        mpatches.Patch(color=G0, label='Correct classification'),
-        mpatches.Patch(color=G5, label='Wrong classification'),
+        mpatches.Patch(facecolor=G4, edgecolor=G3, label='Correct'),
+        mpatches.Patch(facecolor=BG6, edgecolor=G3, label='Wrong'),
     ]
-    fig.legend(handles=handles, loc='lower center', ncol=2,
-               fontsize=11, framealpha=0.95, edgecolor=G5,
-               bbox_to_anchor=(0.5, -0.01))
-    fig.tight_layout()
+    # Under the grid the legend sat on the bottom row of graphs; above it,
+    # the band beside the title is empty.
+    fig.legend(handles=handles, loc='upper center', ncol=2, fontsize=8,
+               frameon=False, handlelength=1.2, handletextpad=0.4,
+               bbox_to_anchor=(0.5, 0.975))
     save(fig, filename)
     print(f'  Wrong predictions (grid positions 1-16): {wrong} ({len(wrong)} of 16)')
 
