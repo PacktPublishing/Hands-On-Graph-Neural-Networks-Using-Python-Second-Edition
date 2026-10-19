@@ -30,32 +30,41 @@ np.random.seed(SEED)
 # ── Figure style, shared by every plot in this file ──────────────────────────
 FIGDIR = 'figures'
 os.makedirs(FIGDIR, exist_ok=True)
-FONT = "DejaVu Sans"
-BG   = "white"
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, COL_WIDTH)
+
+apply()
 G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
 G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
 
 
-def savefig(fig, name, dpi=200):
-    fig.savefig(f"{FIGDIR}/{name}", dpi=dpi, bbox_inches='tight',
+def savefig(fig, name, dpi=None):
+    fig.savefig(f"{FIGDIR}/{name}", bbox_inches='tight',
                 facecolor=BG, edgecolor='none')
     plt.close(fig)
     print(f"  saved {name}")
 
 
-def metrics_table(rows, cols, name, figsize=(9, 2.8)):
+def metrics_table(rows, cols, name, figsize=(5.50, 1.90)):
     """Grayscale table figure; the first data row is highlighted."""
     cclr = [['white'] + ["#AAAAAA"] * (len(cols) - 1)]
     cclr += [['white'] + [G6] * (len(cols) - 1) for _ in rows[1:]]
     fig, ax = plt.subplots(figsize=figsize)
     fig.patch.set_facecolor(BG); ax.axis('off')
-    tbl = ax.table(cellText=rows, colLabels=cols,
-                   cellLoc='center', loc='center', cellColours=cclr)
-    tbl.auto_set_font_size(False); tbl.set_fontsize(12); tbl.scale(1, 2.4)
+    # The model names are the widest cells, so the first column gets the room
+    # it needs; with equal widths "Historical Avg (HA)" was cut off.
+    widths = [0.40] + [0.60 / (len(cols) - 1)] * (len(cols) - 1)
+    tbl = ax.table(cellText=rows, colLabels=cols, cellLoc='center',
+                   colWidths=widths, cellColours=cclr,
+                   bbox=[0.0, 0.0, 1.0, 1.0])
+    tbl.auto_set_font_size(False); tbl.set_fontsize(8)
     for ci in range(len(cols)):
         tbl[0, ci].set_facecolor(G1)
         tbl[0, ci].set_text_props(color='white', fontweight='bold')
-    fig.tight_layout()
     savefig(fig, name)
 
 
@@ -93,20 +102,19 @@ print(f"\nSpeeds shape:    {speeds.shape}    (time steps × stations)")
 print(f"Distances shape: {distances.shape}")
 
 # ── All-station speed plot ────────────────────────────────────────────────────
-plt.figure(figsize=(10, 5), dpi=150)
+plt.figure(figsize=(5.50, 2.75))
 plt.plot(speeds, color='#555555', linewidth=0.3, alpha=0.4)
 plt.grid(linestyle=':')
 plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('Traffic speed — all 228 sensor stations')
-plt.tight_layout()
-plt.savefig(f'{FIGDIR}/fig16_2_all_speeds.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_2_all_speeds.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_2_all_speeds.png")
 
 # ── Mean + std plot ───────────────────────────────────────────────────────────
 mean = speeds.mean(axis=1)
 std  = speeds.std(axis=1)
 
-plt.figure(figsize=(10, 5), dpi=150)
+plt.figure(figsize=(5.50, 2.75))
 plt.plot(mean, color='#111111', linewidth=1.2, label='Mean')
 plt.fill_between(mean.index, mean-std, mean+std,
                  color='#AAAAAA', alpha=0.3, label='+/- 1 std')
@@ -114,11 +122,11 @@ plt.grid(linestyle=':')
 plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('Mean traffic speed with standard deviation')
 plt.legend(); plt.tight_layout()
-plt.savefig(f'{FIGDIR}/fig16_3_mean_speed.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_3_mean_speed.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_3_mean_speed.png")
 
 # ── Distance vs correlation ───────────────────────────────────────────────────
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), dpi=150)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.50, 2.75))
 fig.tight_layout(pad=3.0)
 ax1.matshow(distances, cmap='Greys')
 ax1.set_xlabel('Sensor'); ax1.set_ylabel('Sensor')
@@ -126,7 +134,7 @@ ax1.set_title('Distance matrix')
 ax2.matshow(-np.corrcoef(speeds.T), cmap='Greys')
 ax2.set_xlabel('Sensor'); ax2.set_ylabel('Sensor')
 ax2.set_title('Negated correlation')
-plt.savefig(f'{FIGDIR}/fig16_4_matrices.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_4_matrices.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_4_matrices.png")
 
 
@@ -157,25 +165,24 @@ print(f"Adjacency matrix: {adj.shape}, non-zero entries: {(adj > 0).sum()}")
 print(f"Sample row 0: {adj[0, :5]}")
 
 # Adjacency matrix plot
-plt.figure(figsize=(7, 6), dpi=150)
+plt.figure(figsize=(5.50, 4.71))
 cax = plt.matshow(adj, cmap='Greys_r', fignum=False)
 plt.colorbar(cax); plt.xlabel('Sensor'); plt.ylabel('Sensor')
 plt.title('PeMS-M weighted adjacency matrix')
-plt.tight_layout()
-plt.savefig(f'{FIGDIR}/fig16_5_adj_matrix.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_5_adj_matrix.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_5_adj_matrix.png")
 
 # Graph plot
 rows_g, cols_g = np.where(adj > 0)
 G = nx.Graph()
 G.add_edges_from(zip(rows_g.tolist(), cols_g.tolist()))
-plt.figure(figsize=(10, 5), dpi=150)
+plt.figure(figsize=(5.50, 2.75))
 nx.draw(G, with_labels=False, node_size=20, node_color='#333333',
         edge_color='#AAAAAA', width=0.5)
 plt.title('PeMS-M sensor network as a graph')
 # No tight_layout here: networkx draws on an axes without a standard layout,
 # and matplotlib warns that the result may be wrong. bbox_inches does the job.
-plt.savefig(f'{FIGDIR}/fig16_6_graph.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_6_graph.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_6_graph.png")
 
 # Z-score normalisation
@@ -373,7 +380,7 @@ mae_v  = [MAE(y_test, p)  for p in (gnn_pred, rw_pred, ha_pred)]
 mape_v = [MAPE(y_test, p)*100 for p in (gnn_pred, rw_pred, ha_pred)]
 
 x = np.arange(len(models)); w = 0.25
-fig, ax = plt.subplots(figsize=(10, 5))
+fig, ax = plt.subplots(figsize=(5.50, 2.75))
 fig.patch.set_facecolor(BG); ax.set_facecolor(BG)
 b1 = ax.bar(x - w, rmse_v, w, label='RMSE', color=G0, alpha=0.85)
 b2 = ax.bar(x,     mae_v,  w, label='MAE',  color=G3, alpha=0.85)
@@ -383,11 +390,15 @@ for bars in (b1, b2, b3):
         h = bar.get_height()
         ax.text(bar.get_x() + bar.get_width()/2., h + 0.2, f'{h:.1f}',
                 ha='center', va='bottom', fontsize=8, fontfamily=FONT)
-ax.set_xticks(x); ax.set_xticklabels(models, fontsize=11, fontfamily=FONT)
-ax.set_ylabel('Error value', fontsize=11, fontfamily=FONT)
-ax.legend(fontsize=10); ax.spines[['top','right']].set_visible(False)
+ax.set_xticks(x); ax.set_xticklabels(models, fontsize=9, fontfamily=FONT)
+ax.set_ylabel('Error value', fontsize=9, fontfamily=FONT)
+ax.tick_params(labelsize=8.5)
+# Inside the axes the legend sat on the tallest bar and its value label.
+ax.set_ylim(0, max(mape_v) * 1.12)
+ax.legend(fontsize=8, loc='upper center', bbox_to_anchor=(0.5, -0.14),
+          ncol=3, frameon=False)
+ax.spines[['top','right']].set_visible(False)
 ax.grid(axis='y', linestyle=':', alpha=0.4)
-fig.tight_layout()
 savefig(fig, "fig16_9_metric_bars.png")
 
 # ── Prediction plot ───────────────────────────────────────────────────────────
@@ -395,7 +406,7 @@ savefig(fig, "fig16_9_metric_bars.png")
 y_preds = gnn_pred.reshape(-1, speeds_arr.shape[1]).mean(axis=1)
 
 split = len(speeds) - len(y_preds)
-plt.figure(figsize=(10, 5), dpi=150)
+plt.figure(figsize=(5.50, 2.75))
 plt.plot(mean, color='#111111', linewidth=0.9, label='Mean')
 plt.fill_between(mean.index, mean-std, mean+std,
                  color='#BBBBBB', alpha=0.25)
@@ -405,8 +416,7 @@ plt.axvline(x=split, color='#777777', linestyle='--')
 plt.xlabel('Time (5 min)'); plt.ylabel('Traffic speed (mph)')
 plt.title('A3T-GCN — mean predicted traffic speed on the test set')
 plt.legend(); plt.grid(linestyle=':', alpha=0.4)
-plt.tight_layout()
-plt.savefig(f'{FIGDIR}/fig16_10_predictions.png', dpi=150, bbox_inches='tight')
+plt.savefig(f'{FIGDIR}/fig16_10_predictions.png', bbox_inches='tight')
 plt.close(); print("  saved fig16_10_predictions.png")
 print("Done.")
 
@@ -606,7 +616,7 @@ metrics_table(
     [["STAEformer",      f"{rmse_s:.4f}", f"{mae_s:.4f}", f"{mape_s:.2f}%"],
      ["LSTM (no graph)", f"{rmse_l:.4f}", f"{mae_l:.4f}", f"{mape_l:.2f}%"]],
     ["Model", "RMSE", "MAE", "MAPE"],
-    "fig16_13_shortrange_comparison.png", figsize=(9, 2.4))
+    "fig16_13_shortrange_comparison.png", figsize=(5.50, 1.55))
 
 print("\nTraining time on this machine")
 print("-" * 65)
