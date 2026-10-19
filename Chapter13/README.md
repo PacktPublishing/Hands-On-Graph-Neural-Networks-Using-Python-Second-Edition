@@ -8,7 +8,7 @@ python run.py
 python figures/generate_figures.py
 ```
 
-`run.py` took 17 seconds on the machine this was verified on, CPU only.
+`run.py` took about 8 minutes on the machine this was verified on, CPU only. Almost all of it is HAN: the APCPA and APTPA meta-paths connect authors through 5.0 and 7.0 million edges.
 
 ## Data
 
@@ -18,7 +18,7 @@ Downloaded on first run, into this folder:
 
 ## Figures
 
-6 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with the command above; they are drawn in grayscale, as printed.
+6 figures, listed in [figures/INDEX.md](figures/INDEX.md), all drawn in grayscale at print width with `tools/bookstyle.py`. `figures/generate_figures.py` draws the five diagrams (13.1–13.5); `run.py` draws the comparison table (13.6) from the results of the run.
 
 ## Requirements
 
@@ -28,4 +28,5 @@ Covered by the pinned environment in the repository root. This chapter needs:
 torch>=2.2
 torch-geometric>=2.5
 numpy>=1.26
+matplotlib>=3.8
 ```

@@ -1,7 +1,9 @@
 """
-Chapter 13 – All figures in grayscale, drawn at the width they are printed.
+Chapter 13 – Conceptual diagrams in grayscale, drawn at the width they are
+printed.
 
-Figs 13.1–13.6: pure matplotlib diagrams, no external downloads.
+Figs 13.1–13.5: pure matplotlib diagrams, no external downloads. Figure 13.6,
+the comparison of the three models, is produced by run.py from the run.
 
 Every figure is laid out in fractions of its axes rather than in inches, so
 the layout does not move when the printed width changes; bookstyle sets that
@@ -86,11 +88,11 @@ arr(ax, CENTRES[1] + BOX_W / 2, ROW_Y, CENTRES[2] - BOX_W / 2, ROW_Y)
 note(ax, 0.095, ROW_Y, "Node and\nedge\nfeatures", italic=False)
 arr(ax, 0.165, ROW_Y, CENTRES[0] - BOX_W / 2, ROW_Y)
 arr(ax, CENTRES[2] + BOX_W / 2, ROW_Y, 0.835, ROW_Y)
-note(ax, 0.905, ROW_Y, "Updated\nembedding\nh_v", italic=False)
+note(ax, 0.905, ROW_Y, "Updated\nembedding\n$h_v$", italic=False)
 
-for x, caption in zip(CENTRES, ["h_v, h_u, e_uv\n→ message\nm_uv",
-                                "sum, mean\nor max\nover N(v)",
-                                "h_v +\naggregated\n→ new h_v"]):
+for x, caption in zip(CENTRES, ["$h_v$, $h_u$, $e_{uv}$\n→ message\n$m_{uv}$",
+                                "sum, mean\nor max\nover $N(v)$",
+                                "$h_v$ +\naggregated\n→ new $h_v$"]):
     note(ax, x, 0.18, caption)
 
 title(ax, "The Message Passing Neural Network (MPNN) framework")
@@ -213,7 +215,7 @@ draw_gat(axes[0], "Homogeneous GAT (single relation type)", [
     [(0.42, "Author\nclassification", FILLS[2])],
 ], box_h=0.42)
 
-draw_gat(axes[1], "Heterogeneous GAT via to_hetero()\n(one layer per relation)", [
+draw_gat(axes[1], "Heterogeneous GAT via to_hetero()\n(one layer per relation type, two layers deep)", [
     [(0.70, "Author\nfeatures", FILLS[0]),
      (0.52, "Paper\nfeatures", FILLS[0]),
      (0.34, "Term\nfeatures", FILLS[0]),
@@ -257,36 +259,5 @@ for x, label in [(0.13, "Input"), (0.39, "Node level"),
 title(ax, "HAN: node-level and semantic-level attention")
 save(fig, "fig13_5_han.png")
 
-
-# ── Fig 13.6: Comparison table ────────────────────────────────────────────────
-print("Figure 13.6 …")
-
-rows = [["GAT (homogeneous)", "Author-Paper-Author\nonly", "71.60%", "baseline"],
-        ["Het-GAT (to_hetero)", "all 6 relation types", "80.01%", "+8.41%"],
-        ["HAN", "node + semantic\nattention", "81.76%", "+10.16%"]]
-cols = ["Model", "Information used", "Test acc.", "vs base"]
-
-fig, ax = canvas(0.36)
-# bbox keeps the table clear of the title; loc='center' alone lets the two
-# collide, because the table fills the axes.
-table = ax.table(cellText=rows, colLabels=cols, cellLoc='center',
-                 colWidths=[0.30, 0.34, 0.18, 0.18],
-                 bbox=[0.0, 0.0, 1.0, 0.88])
-table.auto_set_font_size(False)
-table.set_fontsize(8.5)
-for (row, col), cell in table.get_celld().items():
-    cell.set_edgecolor(G4)
-    cell.set_linewidth(0.6)
-    cell.get_text().set_fontfamily(FONT)
-    if row == 0:
-        cell.set_facecolor(G5)
-        cell.get_text().set_color(INK)
-        cell.get_text().set_fontweight('bold')
-    else:
-        cell.set_facecolor(G6 if col == 2 else BG)
-        cell.get_text().set_color(INK)
-
-title(ax, "Author classification on DBLP: 100 epochs, single run", fs=9)
-save(fig, "fig13_6_comparison.png")
 
 print("Done.")

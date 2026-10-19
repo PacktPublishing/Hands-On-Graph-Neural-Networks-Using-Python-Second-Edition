@@ -1,67 +1,63 @@
 """
-Chapter 13 – Learning from Heterogeneous Graphs
-Hands-On Graph Neural Networks Using Python (2nd Edition)
+Chapter 13 - Learning from Heterogeneous Graphs
+Hands-On Graph Neural Networks Using Python, Second Edition
 
-Requirements:
-    pip install torch torch-geometric numpy
+Implements a GCN layer with PyG's MessagePassing class, then classifies the
+authors of DBLP with three models: a homogeneous GAT on the author-paper-author
+(APA) meta-path, a two-layer heterogeneous GAT built with to_hetero(), and HAN
+on the APA, APCPA and APTPA meta-paths. Prints the training logs, the test
+accuracy of each model, the learned semantic attention weights of HAN, and a
+comparison of the three models.
 
-Fixes versus the first edition:
-  - accuracy() uses .float().mean() instead of .sum() / mask.sum()
-  - Reference [5] corrected: Wang et al. (2019) WWW, not Liu et al. (2021)
-  - GAT import aliased as PyGGAT to avoid name clash with Chapter 7 custom class
-  - Comparison table added across all three approaches
-  - Opening paragraph updated to reflect new chapter position (Ch 13)
-  - torch.manual_seed(0) reset before each PART for cell-by-cell determinism
+Figure saved in figures/, drawn at print width with tools/bookstyle.py:
+    fig13_6_comparison.png
+
+Install the packages listed in requirements.txt before running.
 """
+
+import os
+import sys
+import time
 
 import torch
 import torch.nn.functional as F
 import torch_geometric.transforms as T
 from torch import nn
 from torch_geometric.datasets import DBLP
-from torch_geometric.nn import (
-    GAT as PyGGAT,
-    GATConv, Linear, to_hetero,
-    HANConv, MessagePassing
-)
+from torch_geometric.nn import GAT as PyGGAT
+from torch_geometric.nn import GATConv, HANConv, MessagePassing, to_hetero
 from torch_geometric.utils import add_self_loops, degree
 
-torch.manual_seed(0)
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save, FONT, BG, INK,
+                       G4, G5, G6)
+
+plt = apply()
+
+SEED = 0
+torch.manual_seed(SEED)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 
-# =============================================================================
-# UTILITY: shared accuracy function
-# Fixed: .float().mean() instead of .sum() / mask.sum()
-# =============================================================================
-
-def accuracy(pred: torch.Tensor, mask: torch.Tensor,
-             labels: torch.Tensor) -> float:
+def accuracy(pred, mask, labels):
     return (pred[mask] == labels[mask]).float().mean().item()
 
 
 # =============================================================================
-# PART 0 – MPNN framework: GCNConv from scratch via MessagePassing
+# PART 0 - GCN layer with MessagePassing
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("PART 0 – GCNConv via MessagePassing (illustration)")
+print("PART 0 - GCNConv via MessagePassing")
 print("=" * 60)
 
 
 class GCNConv(MessagePassing):
-    """
-    GCN layer implemented using PyG's MessagePassing base class.
-    Demonstrates the three MPNN steps explicitly:
-      message()    -> normalise neighbour features
-      aggregate()  -> sum (specified via aggr='add')
-      update()     -> identity (self-loops handle target node)
-    """
-
-    def __init__(self, dim_in: int, dim_h: int):
+    def __init__(self, dim_in, dim_h):
         super().__init__(aggr='add')
-        self.linear = torch.nn.Linear(dim_in, dim_h, bias=False)
+        self.linear = nn.Linear(dim_in, dim_h, bias=False)
 
     def forward(self, x, edge_index):
         edge_index, _ = add_self_loops(edge_index, num_nodes=x.size(0))
@@ -78,98 +74,102 @@ class GCNConv(MessagePassing):
 
 
 conv = GCNConv(16, 32)
-print(f"GCNConv via MessagePassing: {conv}")
 x_dummy = torch.randn(10, 16)
 ei_dummy = torch.randint(0, 10, (2, 20))
 out_dummy = conv(x_dummy, ei_dummy)
-print(f"Input: {x_dummy.shape}  Output: {out_dummy.shape}  ok")
+print(f"Input: {tuple(x_dummy.shape)}  Output: {tuple(out_dummy.shape)}")
 
 
 # =============================================================================
-# PART 1 – Homogeneous GAT baseline with meta-path
+# PART 1 - Homogeneous GAT on the APA meta-path
 # =============================================================================
 
-torch.manual_seed(0)
+torch.manual_seed(SEED)
 print("\n" + "=" * 60)
-print("PART 1 – Homogeneous GAT + Author-Paper-Author meta-path")
+print("PART 1 - Homogeneous GAT on the author-paper-author meta-path")
 print("=" * 60)
+start = time.time()
 
-# Author-Paper-Author: connects authors who have written the same paper
 metapaths = [[('author', 'paper'), ('paper', 'author')]]
-transform  = T.AddMetaPaths(metapaths=metapaths, drop_orig_edge_types=True)
-
+transform = T.AddMetaPaths(metapaths=metapaths, drop_orig_edge_types=True)
 dataset1 = DBLP('.', transform=transform)
-data1    = dataset1[0].to(device)
+data1 = dataset1[0].to(device)
 print(data1)
 
-# PyGGAT alias avoids name clash with any custom GAT class from Chapter 7
-model1     = PyGGAT(in_channels=-1, hidden_channels=64,
-                    out_channels=4, num_layers=1).to(device)
-optimizer1 = torch.optim.Adam(model1.parameters(), lr=0.001, weight_decay=0.001)
+for name in ['train', 'val', 'test']:
+    print(f"{name}_mask: {int(data1['author'][f'{name}_mask'].sum())} authors")
+
+apa = ('author', 'metapath_0', 'author')
+model1 = PyGGAT(in_channels=-1, hidden_channels=64,
+                out_channels=4, num_layers=1).to(device)
+optimizer1 = torch.optim.Adam(model1.parameters(), lr=0.001,
+                              weight_decay=0.001)
 
 
 @torch.no_grad()
 def test1(mask):
     model1.eval()
-    pred = model1(
-        data1.x_dict['author'],
-        data1.edge_index_dict[('author', 'metapath_0', 'author')]
-    ).argmax(dim=-1)
+    pred = model1(data1.x_dict['author'],
+                  data1.edge_index_dict[apa]).argmax(dim=-1)
     return accuracy(pred, mask, data1['author'].y)
 
 
-print("\nTraining homogeneous GAT …")
 for epoch in range(101):
     model1.train()
     optimizer1.zero_grad()
-    out  = model1(data1.x_dict['author'],
-                  data1.edge_index_dict[('author', 'metapath_0', 'author')])
+    out = model1(data1.x_dict['author'], data1.edge_index_dict[apa])
     mask = data1['author'].train_mask
     loss = F.cross_entropy(out[mask], data1['author'].y[mask])
     loss.backward()
     optimizer1.step()
     if epoch % 20 == 0:
-        print(f"  Epoch {epoch:>3} | Loss: {loss:.4f} | "
-              f"Train: {test1(data1['author'].train_mask)*100:.2f}% | "
-              f"Val: {test1(data1['author'].val_mask)*100:.2f}%")
+        print(f'Epoch {epoch:>3} | Train Loss: {loss:.4f} |'
+              f' Train Acc: {test1(data1["author"].train_mask)*100:.2f}% |'
+              f' Val Acc: {test1(data1["author"].val_mask)*100:.2f}%')
 
 acc1 = test1(data1['author'].test_mask)
-print(f"\nHomogeneous GAT test accuracy: {acc1*100:.2f}%")
+print(f'Test accuracy: {acc1*100:.2f}%')
+print(f"Time: {time.time() - start:.0f} s")
 
 
 # =============================================================================
-# PART 2 – Heterogeneous GAT via to_hetero()
+# PART 2 - Heterogeneous GAT with to_hetero()
 # =============================================================================
 
-torch.manual_seed(0)
+torch.manual_seed(SEED)
 print("\n" + "=" * 60)
-print("PART 2 – Heterogeneous GAT via to_hetero()")
+print("PART 2 - Two-layer heterogeneous GAT with to_hetero()")
 print("=" * 60)
+start = time.time()
 
 dataset2 = DBLP(root='.')
-data2    = dataset2[0]
-
-# conference nodes have no features in the original dataset
-# zero-padding is the standard convention for feature-less node types
+data2 = dataset2[0]
 data2['conference'].x = torch.zeros(20, 1)
 data2 = data2.to(device)
+print("Edge types:")
+for edge_type in data2.edge_types:
+    print(f"  {edge_type}: {data2[edge_type].edge_index.size(1):,} edges")
 
 
 class HeteroGAT(nn.Module):
     def __init__(self, dim_h, dim_out):
         super().__init__()
-        # (-1, -1): lazy init, PyG infers input dims from each node type
-        self.conv   = GATConv((-1, -1), dim_h, add_self_loops=False)
+        self.conv1 = GATConv((-1, -1), dim_h, add_self_loops=False)
+        self.conv2 = GATConv((-1, -1), dim_h, add_self_loops=False)
         self.linear = nn.Linear(dim_h, dim_out)
 
     def forward(self, x, edge_index):
-        h = self.conv(x, edge_index).relu()
+        h = self.conv1(x, edge_index).relu()
+        h = self.conv2(h, edge_index).relu()
         return self.linear(h)
 
 
-model2     = HeteroGAT(dim_h=64, dim_out=4)
-model2     = to_hetero(model2, data2.metadata(), aggr='sum').to(device)
-optimizer2 = torch.optim.Adam(model2.parameters(), lr=0.001, weight_decay=0.001)
+model2 = HeteroGAT(dim_h=64, dim_out=4)
+model2 = to_hetero(model2, data2.metadata(), aggr='sum').to(device)
+with torch.no_grad():
+    model2(data2.x_dict, data2.edge_index_dict)
+optimizer2 = torch.optim.Adam(model2.parameters(), lr=0.001,
+                              weight_decay=0.001)
 
 
 @torch.no_grad()
@@ -179,43 +179,56 @@ def test2(mask):
     return accuracy(pred, mask, data2['author'].y)
 
 
-print("\nTraining heterogeneous GAT …")
 for epoch in range(101):
     model2.train()
     optimizer2.zero_grad()
-    out  = model2(data2.x_dict, data2.edge_index_dict)['author']
+    out = model2(data2.x_dict, data2.edge_index_dict)['author']
     mask = data2['author'].train_mask
     loss = F.cross_entropy(out[mask], data2['author'].y[mask])
     loss.backward()
     optimizer2.step()
     if epoch % 20 == 0:
-        print(f"  Epoch {epoch:>3} | Loss: {loss:.4f} | "
-              f"Val: {test2(data2['author'].val_mask)*100:.2f}%")
+        print(f'Epoch {epoch:>3} | Train Loss: {loss:.4f} |'
+              f' Val Acc: {test2(data2["author"].val_mask)*100:.2f}%')
 
 acc2 = test2(data2['author'].test_mask)
-print(f"\nHeterogeneous GAT test accuracy: {acc2*100:.2f}%")
+print(f'Test accuracy: {acc2*100:.2f}%')
+print(f"Time: {time.time() - start:.0f} s")
 
 
 # =============================================================================
-# PART 3 – HAN (Hierarchical Attention Network)
+# PART 3 - HAN on the APA, APCPA and APTPA meta-paths
 # =============================================================================
 
-torch.manual_seed(0)
+torch.manual_seed(SEED)
 print("\n" + "=" * 60)
-print("PART 3 – HAN (Wang et al., 2019)")
+print("PART 3 - HAN on the APA, APCPA and APTPA meta-paths")
 print("=" * 60)
+start = time.time()
 
-dataset3 = DBLP('.')
-data3    = dataset3[0]
-data3['conference'].x = torch.zeros(20, 1)
-data3 = data3.to(device)
+metapaths = [
+    [('author', 'paper'), ('paper', 'author')],
+    [('author', 'paper'), ('paper', 'conference'),
+     ('conference', 'paper'), ('paper', 'author')],
+    [('author', 'paper'), ('paper', 'term'),
+     ('term', 'paper'), ('paper', 'author')],
+]
+metapath_names = ['APA', 'APCPA', 'APTPA']
+transform = T.AddMetaPaths(metapaths=metapaths, drop_orig_edge_types=True,
+                           drop_unconnected_node_types=True)
+dataset3 = DBLP('.', transform=transform)
+data3 = dataset3[0].to(device)
+print(data3)
+for i, name in enumerate(metapath_names):
+    edge_type = ('author', f'metapath_{i}', 'author')
+    print(f"  {name}: {data3[edge_type].edge_index.size(1):,} edges")
 
 
 class HAN(nn.Module):
-    def __init__(self, dim_in, dim_out, dim_h=128, heads=8):
+    def __init__(self, dim_in, dim_out, dim_h=64, heads=8):
         super().__init__()
-        self.han    = HANConv(dim_in, dim_h, heads=heads,
-                              dropout=0.6, metadata=data3.metadata())
+        self.han = HANConv(dim_in, dim_h, heads=heads,
+                           dropout=0.6, metadata=data3.metadata())
         self.linear = nn.Linear(dim_h, dim_out)
 
     def forward(self, x_dict, edge_index_dict):
@@ -223,9 +236,11 @@ class HAN(nn.Module):
         return self.linear(out['author'])
 
 
-# dim_in=-1: lazy initialisation infers each node type's input dimension
-model3     = HAN(dim_in=-1, dim_out=4).to(device)
-optimizer3 = torch.optim.Adam(model3.parameters(), lr=0.001, weight_decay=0.001)
+model3 = HAN(dim_in=-1, dim_out=4).to(device)
+with torch.no_grad():
+    model3(data3.x_dict, data3.edge_index_dict)
+optimizer3 = torch.optim.Adam(model3.parameters(), lr=0.001,
+                              weight_decay=0.001)
 
 
 @torch.no_grad()
@@ -235,22 +250,31 @@ def test3(mask):
     return accuracy(pred, mask, data3['author'].y)
 
 
-print("\nTraining HAN …")
 for epoch in range(101):
     model3.train()
     optimizer3.zero_grad()
-    out  = model3(data3.x_dict, data3.edge_index_dict)
+    out = model3(data3.x_dict, data3.edge_index_dict)
     mask = data3['author'].train_mask
     loss = F.cross_entropy(out[mask], data3['author'].y[mask])
     loss.backward()
     optimizer3.step()
     if epoch % 20 == 0:
-        print(f"  Epoch {epoch:>3} | Loss: {loss:.4f} | "
-              f"Train: {test3(data3['author'].train_mask)*100:.2f}% | "
-              f"Val: {test3(data3['author'].val_mask)*100:.2f}%")
+        print(f'Epoch {epoch:>3} | Train Loss: {loss:.4f} |'
+              f' Train Acc: {test3(data3["author"].train_mask)*100:.2f}% |'
+              f' Val Acc: {test3(data3["author"].val_mask)*100:.2f}%')
 
 acc3 = test3(data3['author'].test_mask)
-print(f"\nHAN test accuracy: {acc3*100:.2f}%")
+print(f'Test accuracy: {acc3*100:.2f}%')
+
+model3.eval()
+with torch.no_grad():
+    _, semantic_attn = model3.han(data3.x_dict, data3.edge_index_dict,
+                                  return_semantic_attention_weights=True)
+weights = semantic_attn['author'].flatten().tolist()
+print("Semantic attention weights (author):")
+for name, w in zip(metapath_names, weights):
+    print(f"  {name}: {w:.3f}")
+print(f"Time: {time.time() - start:.0f} s")
 
 
 # =============================================================================
@@ -258,12 +282,48 @@ print(f"\nHAN test accuracy: {acc3*100:.2f}%")
 # =============================================================================
 
 print("\n" + "=" * 60)
-print("COMPARISON — Author classification on DBLP")
+print("COMPARISON - Author classification on DBLP")
 print("=" * 60)
-print(f"{'Model':<30} {'Test accuracy':>15}")
-print("-" * 47)
-print(f"{'GAT (homogeneous + meta-path)':<30} {acc1*100:>14.2f}%")
-print(f"{'Het-GAT (to_hetero())':<30} {acc2*100:>14.2f}%  (+{(acc2-acc1)*100:.2f}%)")
-print(f"{'HAN':<30} {acc3*100:>14.2f}%  (+{(acc3-acc1)*100:.2f}%)")
-print("-" * 47)
+print(f"{'Model':<32} {'Test accuracy':>13}")
+print("-" * 60)
+print(f"{'GAT (APA meta-path)':<32} {acc1*100:>12.2f}%")
+print(f"{'Heterogeneous GAT (to_hetero)':<32} {acc2*100:>12.2f}%"
+      f"  ({(acc2-acc1)*100:+.2f} points)")
+print(f"{'HAN (APA, APCPA, APTPA)':<32} {acc3*100:>12.2f}%"
+      f"  ({(acc3-acc1)*100:+.2f} points)")
+print("-" * 60)
+
+rows = [
+    ["GAT (homogeneous)", "APA meta-path\nonly", f"{acc1*100:.2f}%", "baseline"],
+    ["Heterogeneous GAT\n(to_hetero)", "all node types,\ntwo layers",
+     f"{acc2*100:.2f}%", f"{(acc2-acc1)*100:+.2f} pts"],
+    ["HAN", "APA, APCPA, APTPA\n+ semantic attention",
+     f"{acc3*100:.2f}%", f"{(acc3-acc1)*100:+.2f} pts"],
+]
+cols = ["Model", "Information used", "Test acc.", "vs base"]
+
+fig, ax = figure(aspect=0.40)
+ax.set_facecolor(BG)
+ax.axis('off')
+table = ax.table(cellText=rows, colLabels=cols, cellLoc='center',
+                 colWidths=[0.30, 0.34, 0.18, 0.18],
+                 bbox=[0.0, 0.0, 1.0, 0.88])
+table.auto_set_font_size(False)
+table.set_fontsize(8.5)
+for (row, col), cell in table.get_celld().items():
+    cell.set_edgecolor(G4)
+    cell.set_linewidth(0.6)
+    cell.get_text().set_fontfamily(FONT)
+    cell.get_text().set_color(INK)
+    if row == 0:
+        cell.set_facecolor(G5)
+        cell.get_text().set_fontweight('bold')
+    else:
+        cell.set_facecolor(G6 if col == 2 else BG)
+ax.set_title("Author classification on DBLP: test accuracy, single run",
+             fontsize=9, fontweight='bold', color=INK, fontfamily=FONT)
+os.makedirs(os.path.join(HERE, 'figures'), exist_ok=True)
+save(fig, os.path.join(HERE, 'figures', 'fig13_6_comparison.png'))
+print("Saved fig13_6_comparison.png")
+
 print("\nDone.")
