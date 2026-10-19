@@ -49,16 +49,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FIG_DIR = os.path.join(HERE, 'figures')
 os.makedirs(FIG_DIR, exist_ok=True)
 
-FONT = "DejaVu Sans"
-plt.rcParams['font.family'] = FONT
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, G4 as BG4, G5 as BG5, G6 as BG6)
+
+apply()
 G0, G1, G2, G3, G4, G5 = "#111111", "#333333", "#555555", "#777777", "#999999", "#BBBBBB"
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=dpi, bbox_inches='tight',
-                facecolor='white')
-    plt.close(fig)
-    print(f'Saved figures/{name}')
+def save(fig, name):
+    save_fig(fig, os.path.join(FIG_DIR, name))
+    print(f"Saved figures/{name}")
 
 
 def peak_memory_mb():
@@ -106,7 +107,7 @@ for name, n in counts.items():
     print(f'  {name:<11} {n:>10,}  {n / len(df) * 100:8.4f}%')
 
 count_labels = counts / len(df) * 100
-fig, ax = plt.subplots(figsize=(7, 6))
+fig, ax = plt.subplots(figsize=(5.50, 4.40))
 _, _, autotexts = ax.pie(count_labels[:3].values, labels=count_labels.index[:3],
                          colors=[G5, G2, G4], autopct='%.0f%%',
                          wedgeprops=dict(edgecolor='white', linewidth=1.5))
@@ -122,7 +123,9 @@ print(pd.DataFrame({'Duration': df['Duration'], 'Packets': df['Packets'],
                         percentiles=[0.5, 0.9, 0.99]).to_string())
 print(f"Flows with Duration == 0: {(df['Duration'] == 0).mean() * 100:.2f}%")
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5))
+# Three panels across leave each 1.8 inches, and at 1.96 inches tall the
+# titles and axis labels have no room. They are stacked instead.
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(5.50, 5.60))
 df['Duration'].hist(ax=ax1, bins=50, range=(0, 2), color=G2)
 ax1.set_xlabel('Duration'); ax1.set_ylabel('Number of flows')
 df['Packets'].hist(ax=ax2, bins=20, range=(0, 20), color=G2)
@@ -130,7 +133,6 @@ ax2.set_xlabel('Packets per flow')
 bytes_raw.hist(ax=ax3, bins=50, range=(0, 5000), color=G2)
 ax3.set_xlabel('Bytes per flow')
 fig.suptitle('Distributions before PowerTransformer', color=G0)
-fig.tight_layout()
 save(fig, 'fig17_3_distributions_before.png')
 
 
@@ -204,7 +206,9 @@ df_test[cols]  = scaler.transform(df_test[cols])
 print('\nTransformed features on the training set:')
 print(df_train[cols].describe().to_string())
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(14, 5))
+# Three panels across leave each 1.8 inches, and at 1.96 inches tall the
+# titles and axis labels have no room. They are stacked instead.
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(5.50, 5.60))
 df_train['Duration'].hist(ax=ax1, bins=50, color=G2)
 ax1.set_xlabel('Duration (transformed)'); ax1.set_ylabel('Number of flows')
 df_train['Packets'].hist(ax=ax2, bins=50, color=G2)
@@ -212,7 +216,6 @@ ax2.set_xlabel('Packets (transformed)')
 df_train['Bytes'].hist(ax=ax3, bins=50, color=G2)
 ax3.set_xlabel('Bytes (transformed)')
 fig.suptitle('Distributions after PowerTransformer', color=G0)
-fig.tight_layout()
 save(fig, 'fig17_4_distributions_after.png')
 
 
@@ -390,7 +393,7 @@ print('\nMisclassified flows per true class:')
 for i, n in miss.items():
     print(f'  {labels[i]:<11} {n:>6}')
 
-fig, ax = plt.subplots(figsize=(7, 6))
+fig, ax = plt.subplots(figsize=(5.50, 4.40))
 ax.pie(miss.values, labels=[labels[i] for i in miss.index],
        colors=[G5, G2, G4, G0, G3][:len(miss)], autopct='%.0f%%',
        wedgeprops=dict(edgecolor='white', linewidth=1.5))
@@ -398,7 +401,7 @@ ax.set_title('Proportion of each misclassified class', color=G0)
 save(fig, 'fig17_6_misclassified.png')
 
 cm_norm = cm.astype('float') / cm.sum(axis=1, keepdims=True)
-fig, ax = plt.subplots(figsize=(8, 7))
+fig, ax = plt.subplots(figsize=(5.50, 4.60))
 im = ax.imshow(cm_norm, cmap='Greys', vmin=0, vmax=1)
 plt.colorbar(im, ax=ax, fraction=0.04, pad=0.03, label='Normalized count')
 ax.set_xticks(range(len(labels)))
@@ -412,7 +415,6 @@ for i in range(len(labels)):
                 fontsize=9, color='white' if v > 0.5 else G0)
 ax.set_xlabel('Predicted'); ax.set_ylabel('True')
 ax.set_title('Heterogeneous GNN, CIDDS-001 test set (row-normalized)', color=G0)
-fig.tight_layout()
 save(fig, 'fig17_7_confusion_matrix.png')
 
 

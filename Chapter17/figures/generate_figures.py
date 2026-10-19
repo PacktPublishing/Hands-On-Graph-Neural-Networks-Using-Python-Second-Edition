@@ -22,7 +22,14 @@ np.random.seed(0)
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 
-FONT = "DejaVu Sans"
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, FILLS, COL_WIDTH)
+
+apply()
 BG = "white"
 G0 = "#111111"
 G1 = "#333333"
@@ -33,31 +40,30 @@ G5 = "#BBBBBB"
 G6 = "#DDDDDD"
 
 
-def save(fig, name, dpi=200):
-    fig.savefig(os.path.join(OUT, name), dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(OUT, name))
     print(f"  saved {name}")
 
 
-def rbox(ax, x, y, w, h, lines, fill, fc='white', fs=10, gap=0.24,
-         bold_first=True, edge=G3, ls='-'):
-    ax.add_patch(FancyBboxPatch((x - w/2, y - h/2), w, h,
-                                boxstyle="round,pad=0.02,rounding_size=0.06",
-                                facecolor=fill, edgecolor=edge, linewidth=1.2,
-                                linestyle=ls, zorder=3))
-    n = len(lines)
+def rbox(ax, x, y, w, h, lines, fill=None, fc=None, fs=8, gap=None,
+         bold_first=True):
+    """Square corners, dark type on a light fill; the caller's grey is mapped
+    onto the light palette and `fc` is ignored."""
+    from matplotlib.patches import Rectangle
+    light = {G0: G4, G1: G5, G2: G5, G3: G6}.get(fill, fill or G6)
+    ax.add_patch(Rectangle((x - w / 2, y - h / 2), w, h, facecolor=light,
+                           edgecolor=G3, linewidth=0.8, zorder=3))
     for i, line in enumerate(lines):
-        ax.text(x, y + (n - 1) / 2 * gap - i * gap, line, ha='center',
-                va='center', fontsize=fs if (i == 0 or not bold_first) else fs - 1,
-                color=fc, fontweight='bold' if (i == 0 or not bold_first) else 'normal',
-                fontfamily=FONT, zorder=4)
+        ax.text(x, y, "\n".join(lines), ha='center', va='center',
+                fontsize=fs, color=INK, fontweight='bold', fontfamily=FONT,
+                linespacing=1.5, zorder=4)
+        break
 
 
-def arr(ax, x1, y1, x2, y2, color=G2, lw=1.6, ls='-'):
+def arr(ax, x1, y1, x2, y2, color=G3, lw=1.1, ls='-'):
     ax.annotate("", xy=(x2, y2), xytext=(x1, y1),
                 arrowprops=dict(arrowstyle="-|>", color=color, lw=lw,
-                                linestyle=ls, mutation_scale=14), zorder=2)
+                                linestyle=ls, mutation_scale=9), zorder=2)
 
 
 # =============================================================================
@@ -66,48 +72,47 @@ def arr(ax, x1, y1, x2, y2, color=G2, lw=1.6, ls='-'):
 
 print("Figure 17.1 …")
 
-fig, ax = plt.subplots(figsize=(13, 7))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 13); ax.set_ylim(0, 7)
+# The original was 13 units across in a 5.5-inch figure, which left each
+# subnet box an inch for "192.168.100.0/24". Taller, with fewer units across.
+fig, ax = figure(aspect=0.66)
+ax.set_facecolor(BG); ax.axis('off')
+ax.set_xlim(0, 10); ax.set_ylim(1.9, 8.0)
 
-ax.add_patch(FancyBboxPatch((0.3, 0.5), 7.6, 5.6,
+ax.add_patch(FancyBboxPatch((0.2, 2.1), 6.3, 5.3,
                             boxstyle="round,pad=0.02,rounding_size=0.1",
-                            facecolor="#F4F4F4", edgecolor=G4,
-                            linewidth=1.2, linestyle='--', zorder=1))
-ax.text(4.1, 5.8, "OpenStack environment (internal traffic)", ha='center',
-        fontsize=11, fontweight='bold', color=G1, fontfamily=FONT)
+                            facecolor="#F6F6F6", edgecolor=G4,
+                            linewidth=0.8, linestyle='--', zorder=1))
+ax.text(3.35, 7.1, "OpenStack environment (internal traffic)", ha='center',
+        fontsize=8, fontweight='bold', color=INK, fontfamily=FONT)
 
-rbox(ax, 4.1, 3.3, 2.0, 0.8, ["Internal network"], G2)
-
+rbox(ax, 3.35, 4.7, 2.4, 0.7, ["Internal network"], G2, fs=8)
 subnets = [
-    (1.8, 4.7, ["Server", "192.168.100.0/24"], G0),
-    (6.4, 4.7, ["Management", "192.168.200.0/24"], G1),
-    (6.4, 1.6, ["Office", "192.168.210.0/24"], G1),
-    (1.8, 1.6, ["Developer", "192.168.220.0/24",
-                "incl. the 2 attacking clients"], G0),
+    (1.5, 6.2, ["Server", "192.168.100.0/24"], G0),
+    (5.2, 6.2, ["Management", "192.168.200.0/24"], G1),
+    (5.2, 3.1, ["Office", "192.168.210.0/24"], G1),
+    (1.5, 3.1, ["Developer", "192.168.220.0/24"], G0),
 ]
 for x, y, lines, fill in subnets:
-    rbox(ax, x, y, 2.5, 1.15 if len(lines) == 3 else 0.95, lines, fill)
-    ax.plot([x, 4.1], [y, 3.3], color=G3, linewidth=1.6, zorder=2)
+    rbox(ax, x, y, 2.6, 0.85, lines, fill, fs=8)
+    ax.plot([x, 3.35], [y, 4.7], color=G3, linewidth=0.9, zorder=2)
+ax.text(1.5, 2.45, "the developer subnet holds the two attacking clients",
+        ha='left', va='center', fontsize=8, color=INK_SOFT, fontstyle='italic',
+        fontfamily=FONT)
 
-circle = plt.Circle((9.4, 3.3), 0.85, facecolor=G6, edgecolor=G3,
-                    linewidth=1.2, zorder=2)
-ax.add_patch(circle)
-ax.text(9.4, 3.3, "Internet", ha='center', va='center', fontsize=11,
-        fontweight='bold', color=G0, fontfamily=FONT, zorder=3)
-ax.plot([5.1, 8.55], [3.3, 3.3], color=G3, linewidth=1.6, zorder=1)
+ax.add_patch(plt.Circle((7.6, 4.7), 0.62, facecolor=G6, edgecolor=G3,
+                        linewidth=0.8, zorder=2))
+ax.text(7.6, 4.7, "Internet", ha='center', va='center', fontsize=8,
+        fontweight='bold', color=INK, fontfamily=FONT, zorder=3)
+ax.plot([4.55, 6.98], [4.7, 4.7], color=G3, linewidth=0.9, zorder=1)
 
-rbox(ax, 11.6, 4.8, 2.3, 1.15, ["External server", "web server",
-                                "file synchronization"], G3)
-ax.plot([10.1, 10.45], [3.8, 4.4], color=G3, linewidth=1.6, zorder=1)
-
-rbox(ax, 11.6, 1.6, 2.3, 0.95, ["External attackers", "attack the external server"],
-     G6, fc=G0)
-arr(ax, 11.6, 2.1, 11.6, 4.2, color=G0, lw=1.8, ls='--')
+rbox(ax, 8.75, 6.6, 2.3, 1.15,
+     ["External server", "web server,", "file sync"], G3, fs=8)
+ax.plot([8.05, 8.55], [5.2, 6.05], color=G3, linewidth=0.9, zorder=1)
+rbox(ax, 8.75, 2.9, 2.3, 1.0, ["External", "attackers"], G6, fs=8)
+arr(ax, 8.75, 3.4, 8.75, 6.03, color=G2, ls='--')
 
 ax.set_title("CIDDS-001: emulated small business network",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=8)
-fig.tight_layout()
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig17_1_network.png")
 
 
@@ -117,52 +122,49 @@ save(fig, "fig17_1_network.png")
 
 print("Figure 17.5 …")
 
-fig, ax = plt.subplots(figsize=(14, 6))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(0, 14); ax.set_ylim(0, 6)
+# The three HeteroConv layers ran across 14 units, which at 5.5 inches gave
+# each one 0.9 inches for "SAGEConv (received_by)". One layer is drawn in
+# full and the repetition is stated, rather than drawn three times.
+fig, ax = figure(aspect=0.86)
+ax.set_facecolor(BG); ax.axis('off')
+ax.set_xlim(0, 10); ax.set_ylim(0, 8.6)
 
-Y_FLOW, Y_HOST = 4.1, 1.9
+Y_FLOW, Y_HOST = 6.3, 3.4
 
-rbox(ax, 1.0, Y_FLOW, 1.7, 0.9, ["Flow nodes", "flow features"], G3)
-rbox(ax, 1.0, Y_HOST, 1.7, 0.9, ["Host nodes", "16 address bits"], G1)
+rbox(ax, 1.5, Y_FLOW, 2.6, 0.95, ["Flow nodes", "flow features"], G3, fs=8)
+rbox(ax, 1.5, Y_HOST, 2.6, 0.95, ["Host nodes", "16 address bits"], G1, fs=8)
 
-xs = [3.6, 6.4, 9.2]
-for l, x in enumerate(xs):
-    ax.add_patch(plt.Rectangle((x - 1.25, 1.05), 2.5, 4.0, fill=False,
-                               edgecolor=G4, linestyle='--', linewidth=1.2,
-                               zorder=1))
-    ax.text(x, 5.3, f"HeteroConv {l + 1} + LeakyReLU", ha='center',
-            fontsize=10, color=G1, fontstyle='italic', fontfamily=FONT)
-    rbox(ax, x, Y_FLOW, 2.2, 1.05,
-         ["Update flows", "SAGEConv (sends)", "+ SAGEConv (receives)"], G2, fs=10)
-    rbox(ax, x, Y_HOST, 2.2, 1.05,
-         ["Update hosts", "SAGEConv (sent_by)", "+ SAGEConv (received_by)"], G2, fs=10)
-    ax.annotate("", xy=(x - 0.35, Y_FLOW - 0.55), xytext=(x - 0.35, Y_HOST + 0.55),
-                arrowprops=dict(arrowstyle="-|>", color=G4, lw=1.1,
-                                mutation_scale=10), zorder=2)
-    ax.annotate("", xy=(x + 0.35, Y_HOST + 0.55), xytext=(x + 0.35, Y_FLOW - 0.55),
-                arrowprops=dict(arrowstyle="-|>", color=G4, lw=1.1,
-                                mutation_scale=10), zorder=2)
-
-arr(ax, 1.85, Y_FLOW, 2.45, Y_FLOW)
-arr(ax, 1.85, Y_HOST, 2.45, Y_HOST)
-for a, b in zip(xs[:-1], xs[1:]):
-    arr(ax, a + 1.1, Y_FLOW, b - 1.1, Y_FLOW)
-    arr(ax, a + 1.1, Y_HOST, b - 1.1, Y_HOST)
-
-rbox(ax, 11.6, Y_FLOW, 1.6, 0.9, ["Linear", "64 → 5"], G0)
-arr(ax, 10.3, Y_FLOW, 10.8, Y_FLOW, color=G0)
-arr(ax, 12.4, Y_FLOW, 12.85, Y_FLOW, color=G0)
-ax.text(13.45, Y_FLOW, "5 class\nscores\nper flow", ha='center', va='center',
-        fontsize=10, fontweight='bold', color=G0, fontfamily=FONT)
-ax.text(11.6, Y_HOST, "Host embeddings are\nnot used by the classifier",
-        ha='center', va='center', fontsize=9.5, color=G3, fontstyle='italic',
+ax.add_patch(plt.Rectangle((3.4, 2.3), 3.9, 5.1, fill=False, edgecolor=G4,
+                           linestyle='--', linewidth=0.8, zorder=1))
+ax.text(5.35, 7.7, "HeteroConv layer + LeakyReLU", ha='center', fontsize=8,
+        color=INK_SOFT, fontstyle='italic', fontfamily=FONT)
+rbox(ax, 5.35, Y_FLOW, 3.5, 1.15,
+     ["Update flows", "SAGEConv (sends)", "+ SAGEConv (receives)"], G2, fs=8)
+rbox(ax, 5.35, Y_HOST, 3.5, 1.15,
+     ["Update hosts", "SAGEConv (sent_by)", "+ SAGEConv (received_by)"], G2, fs=8)
+ax.annotate("", xy=(4.75, Y_FLOW - 0.6), xytext=(4.75, Y_HOST + 0.6),
+            arrowprops=dict(arrowstyle="-|>", color=G3, lw=0.9,
+                            mutation_scale=8), zorder=2)
+ax.annotate("", xy=(5.95, Y_HOST + 0.6), xytext=(5.95, Y_FLOW - 0.6),
+            arrowprops=dict(arrowstyle="-|>", color=G3, lw=0.9,
+                            mutation_scale=8), zorder=2)
+ax.text(5.35, 2.0, "this layer is repeated three times", ha='center',
+        va='center', fontsize=8, color=INK_SOFT, fontstyle='italic',
         fontfamily=FONT)
 
-ax.set_title("Heterogeneous GNN: three HeteroConv layers, each with four SAGEConv "
-             "relations summed per node type",
-             fontsize=12, fontweight='bold', color=G0, fontfamily=FONT, pad=10)
-fig.tight_layout()
+arr(ax, 2.85, Y_FLOW, 3.55, Y_FLOW)
+arr(ax, 2.85, Y_HOST, 3.55, Y_HOST)
+arr(ax, 7.15, Y_FLOW, 7.85, Y_FLOW)
+rbox(ax, 8.9, Y_FLOW, 1.9, 0.95, ["Linear", "64 \u2192 5"], G0, fs=8)
+ax.text(8.9, 4.9, "5 class scores\nper flow", ha='center', va='center',
+        fontsize=8, fontweight='bold', color=INK, fontfamily=FONT)
+arr(ax, 8.9, Y_FLOW - 0.48, 8.9, 5.25)
+ax.text(8.9, Y_HOST, "host embeddings\nare not used by\nthe classifier",
+        ha='center', va='center', fontsize=8, color=INK_SOFT,
+        fontstyle='italic', fontfamily=FONT)
+
+ax.set_title("Heterogeneous GNN: four SAGEConv relations\nsummed per node type",
+             fontsize=10.5, fontweight='bold', color=INK, fontfamily=FONT)
 save(fig, "fig17_5_hetero_gnn.png")
 
 print(f"\nAll figures saved to {OUT}")
