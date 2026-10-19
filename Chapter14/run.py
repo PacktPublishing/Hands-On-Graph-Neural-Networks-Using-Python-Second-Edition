@@ -14,6 +14,8 @@ Figures produced in figures/, all from the real datasets and trained models:
 Conceptual diagrams are produced by generate_figures.py.
 """
 import os
+import sys
+import textwrap
 
 import matplotlib
 matplotlib.use('Agg')
@@ -37,14 +39,16 @@ print(f"Using device: {device}")
 
 G0 = "#111111"; G1 = "#333333"; G2 = "#555555"; G3 = "#777777"
 G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
-plt.rcParams['font.family'] = 'DejaVu Sans'
+sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, BG, INK,
+                       INK_SOFT, G4 as BG4, G5 as BG5, G6 as BG6)
+
+apply()
 GREYS = LinearSegmentedColormap.from_list('greys_book', [G6, G0])
 
 
 def save(fig, name):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=200, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close(fig)
+    save_fig(fig, os.path.join(FIG_DIR, name))
     print(f"Saved figures/{name}")
 
 
@@ -64,7 +68,7 @@ def plot_graph(edge_index, num_nodes, title, cbar_label, name, top_k=None):
     for k, n in enumerate(isolates):
         angle = np.pi / 4 + 2 * np.pi * k / len(isolates)
         pos[n] = np.array([radius * np.cos(angle), radius * np.sin(angle)])
-    fig, ax = plt.subplots(figsize=(9, 7))
+    fig, ax = figure(aspect=0.85)
     ax.axis('off')
     nx.draw_networkx_edges(G, pos, ax=ax, alpha=0.15, edge_color=G4, width=0.5)
     nx.draw_networkx_nodes(G, pos, ax=ax, nodelist=nodes, node_color=values,
@@ -74,14 +78,19 @@ def plot_graph(edge_index, num_nodes, title, cbar_label, name, top_k=None):
     sm = plt.cm.ScalarMappable(cmap=GREYS, norm=plt.Normalize(0, values.max()))
     sm.set_array([])
     fig.colorbar(sm, ax=ax, fraction=0.025, pad=0.02, label=cbar_label)
-    ax.set_title(title, fontsize=12, fontweight='bold', color=G0)
+    # Titles are wrapped rather than left to run off a 5.5-inch figure.
+    ax.set_title('\n'.join(textwrap.wrap(title, 46)), fontsize=9.5,
+                 fontweight='bold', color=INK)
     save(fig, name)
 
 
 def plot_series(mean, std, split, xlabel, ylabel, title, name,
                 rolling=None, pred=None, pred_label=None):
     x = np.arange(len(mean))
-    fig, ax = plt.subplots(figsize=(13, 5))
+    # Not the original 0.385: title, axis labels, ticks and legend take a
+    # fixed number of points, so at 5.5 inches a 2.1-inch-tall figure has
+    # nothing left for the data. The plot gets taller as it gets narrower.
+    fig, ax = figure(aspect=0.62)
     ax.plot(x, mean, color=G2, linewidth=0.8, label='Mean')
     ax.fill_between(x, mean - std, mean + std, color=G5, alpha=0.4, label='±1 std dev')
     if rolling is not None:
@@ -90,11 +99,15 @@ def plot_series(mean, std, split, xlabel, ylabel, title, name,
         ax.plot(np.arange(split, split + len(pred)), pred, color=G1,
                 linewidth=2.0, linestyle='--', label=pred_label)
     ax.axvline(x=split, color=G3, linestyle=':', linewidth=1.5, label='Train/test split')
-    ax.set_xlabel(xlabel, fontsize=11)
-    ax.set_ylabel(ylabel, fontsize=11)
-    ax.set_title(title, fontsize=12, fontweight='bold', color=G0)
-    ax.legend(fontsize=10, loc='upper center', bbox_to_anchor=(0.5, -0.13),
-              ncol=5, frameon=False)
+    ax.set_xlabel(xlabel, fontsize=9)
+    ax.set_ylabel(ylabel, fontsize=9)
+    ax.set_title('\n'.join(textwrap.wrap(title, 46)), fontsize=9.5,
+                 fontweight='bold', color=INK)
+    # Three across, not five: five legend entries on one row need more than
+    # 5.5 inches.
+    ax.legend(fontsize=8, loc='upper center', bbox_to_anchor=(0.5, -0.18),
+              ncol=3, frameon=False)
+    ax.tick_params(labelsize=8.5)
     ax.grid(linestyle=':', alpha=0.5)
     ax.spines[['top', 'right']].set_visible(False)
     save(fig, name)
@@ -103,14 +116,15 @@ def plot_series(mean, std, split, xlabel, ylabel, title, name,
 def plot_scatter(y_true, y_pred, xlabel, title, name):
     fit = np.polyfit(y_true, y_pred, 1)
     x_line = np.linspace(y_true.min(), y_true.max(), 100)
-    fig, ax = plt.subplots(figsize=(7, 6))
+    fig, ax = figure(aspect=0.92)
     ax.scatter(y_true, y_pred, color=G1, alpha=0.5, s=18, edgecolors='none')
     ax.plot(x_line, np.polyval(fit, x_line), color=G0, linewidth=2.0, label='Regression line')
     ax.plot(x_line, x_line, color=G4, linewidth=1.2, linestyle='--', label='Perfect prediction')
-    ax.set_xlabel(xlabel, fontsize=11)
-    ax.set_ylabel('Predicted value', fontsize=11)
-    ax.set_title(title, fontsize=11, fontweight='bold', color=G0)
-    ax.legend(fontsize=10)
+    ax.set_xlabel(xlabel, fontsize=9)
+    ax.set_ylabel('Predicted value', fontsize=9)
+    ax.set_title('\n'.join(textwrap.wrap(title, 46)), fontsize=9,
+                 fontweight='bold', color=INK)
+    ax.legend(fontsize=8.5)
     ax.spines[['top', 'right']].set_visible(False)
     save(fig, name)
 
@@ -468,14 +482,14 @@ for epoch in range(1, 51):
 print(f"Final test AP: {test_ap:.4f}")
 
 epochs = np.arange(1, len(train_losses) + 1)
-fig, ax = plt.subplots(figsize=(9, 5))
+fig, ax = figure(aspect=0.556)
 ax.plot(epochs, train_losses, color=G0, linewidth=2.0, label='Train loss')
 ax.plot(epochs, val_losses, color=G3, linewidth=2.0, linestyle='--', label='Validation loss')
-ax.set_xlabel('Epoch', fontsize=11)
-ax.set_ylabel('Binary cross-entropy loss', fontsize=11)
+ax.set_xlabel('Epoch', fontsize=9)
+ax.set_ylabel('Binary cross-entropy loss', fontsize=9)
 ax.set_title('TGN training on the Wikipedia interaction dataset',
-             fontsize=12, fontweight='bold', color=G0)
-ax.legend(fontsize=10)
+             fontsize=10.5, fontweight='bold', color=G0)
+ax.legend(fontsize=8.5)
 ax.grid(linestyle=':', alpha=0.4)
 ax.spines[['top', 'right']].set_visible(False)
 save(fig, 'fig14_15_tgn_loss.png')
