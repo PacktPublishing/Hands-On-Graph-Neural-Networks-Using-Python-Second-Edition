@@ -1,62 +1,21 @@
 """
-Chapter 9 – Bridging Graph Databases and GNNs for Scalability
-Hands-On Graph Neural Networks Using Python (2nd Edition)
+Chapter 9 - Bridging Graph Databases and GNNs for Scalability
+Hands-On Graph Neural Networks Using Python, Second Edition
 
-Requirements:
-    pip install torch torch-geometric ogb pandas
-    pip install neo4j graphdatascience
-    pip install kuzu==0.10.0             # for Part 2 (optional)
+Part 1 loads OGBN-arxiv into Neo4j, projects it into the Graph Data Science
+library, streams it into a PyG Data object, trains a three-layer GraphSAGE
+for 100 epochs, writes the predictions back to Neo4j, runs a mixed Cypher
+query, and draws a random-walk-with-restarts sample. Part 2 loads the same
+graph into Kùzu, extracts it with Cypher, and trains the same GraphSAGE for
+10 epochs. Both parts print load, extraction, and training times.
 
-Prerequisites (services):
-    Neo4j 5 with the Graph Data Science plugin, started by docker-compose.yml:
+Neo4j 5 with the Graph Data Science plugin is started by docker-compose.yml
+(docker compose up -d). It is published on bolt://localhost:17687 and
+http://localhost:17474; set NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD to point
+elsewhere. Kùzu is embedded and needs no service. Part 2 is skipped if kuzu
+is not installed.
 
-        docker compose up -d
-
-    It is published on the +1 ports, so it does not clash with a Neo4j you
-    may already be running: bolt on 7688 and the browser on
-    http://localhost:7475. Override NEO4J_URI to point somewhere else.
-
-    Kùzu is embedded and needs no container.
-
-New in this chapter (no first-edition counterpart):
-  - Part 1: Neo4j + Graph Data Science + GraphSAGE + Cypher writeback
-  - Part 2: Kùzu as embedded storage + Cypher-based PyG extraction
-
-Fixes applied after the technical review:
-  1. PyTorch >= 2.6 changed torch.load to weights_only=True by default, and
-     the cached OGB pickle contains PyG classes that are not on the safe
-     list, so loading OGBN-arxiv raised UnpicklingError. The PyG classes are
-     registered with torch.serialization.add_safe_globals before loading.
-  2. Topology is streamed with gds.graph.relationships.stream, which returns
-     a RelationshipsDataFrame exposing by_rel_type(). The gds.beta namespace
-     used before is deprecated since GDS 2.5.
-  3. The random-walk-with-restarts sample is included, with an
-     exists-then-drop guard and concurrency=1, which randomSeed requires.
-  4. A partial Neo4j load left by an interrupted run is cleared before
-     ingestion, so rerunning never trips the uniqueness constraint.
-  5. Kuzu: the full graph is extracted with get_as_df(), which transfers
-     the result in bulk. get_as_torch_geometric() iterates the result one
-     row at a time in Python and does not finish in reasonable time on
-     1.16M edges; it is kept for the small year-filtered subgraph only.
-     The year column is now exported, since the filtered query needs it.
-  6. Training time is printed for both parts.
-
-Design notes:
-  - Ingestion is idempotent: rerunning the script does not reload the
-    graph if the paper count is already correct.
-  - GraphSAGE outputs raw logits and the loss is CrossEntropyLoss.
-    No log_softmax in the model.
-  - Predictions are written back to Neo4j via id() rather than
-    elementId(): id() is deprecated in Neo4j 5, but matches the
-    integer node id that the GDS client currently returns as `nodeId`,
-    keeping the mapping trivial for a self-contained example.
-  - Part 2 pins kuzu==0.10.0. Kùzu Inc. archived the project in
-    October 2025 after an acquisition. This release provides
-    pre-compiled wheels for Linux, macOS (Intel and Apple Silicon),
-    and Windows. Readers building long-term projects can migrate to
-    LadybugDB, the community-maintained fork with an identical API,
-    by changing `import kuzu` to `import ladybug` and the class names
-    accordingly.
+Install the packages listed in requirements.txt before running.
 """
 
 import os
@@ -71,7 +30,7 @@ torch.manual_seed(SEED); np.random.seed(SEED)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-NEO4J_URI      = os.environ.get('NEO4J_URI',      'bolt://localhost:7688')
+NEO4J_URI      = os.environ.get('NEO4J_URI',      'bolt://localhost:17687')
 NEO4J_USER     = os.environ.get('NEO4J_USER',     'neo4j')
 NEO4J_PASSWORD = os.environ.get('NEO4J_PASSWORD', 'password')
 NEO4J_IMPORT_DIR = os.path.abspath('./neo4j_import')
@@ -241,6 +200,7 @@ x = torch.tensor(node_props['features'].tolist(), dtype=torch.float)
 y = torch.tensor(node_props['subject'].tolist(), dtype=torch.long)
 
 data = Data(x=x, y=y, edge_index=edge_index)
+data.gds_node_id = torch.tensor(gds_ids, dtype=torch.long)
 
 # ── Attach the OGB train/valid/test splits ───────────────────────────────────
 
@@ -310,8 +270,7 @@ for epoch in range(1, 101):
         loss = criterion(out, batch.y[:batch.batch_size])
         loss.backward(); optimizer.step()
         total_loss += float(loss) * batch.batch_size
-    if epoch % 10 == 0 or epoch == 1:
-        print(f"  Epoch {epoch:03d}/100 | Loss: {total_loss/n_train:.4f}")
+    print(f"Epoch {epoch:02d} | Loss: {total_loss / data.train_mask.sum():.4f}")
 print(f"Training time: {time.time()-t_train:.0f}s on {device}")
 
 model.eval()
@@ -331,7 +290,7 @@ for name in ('train', 'valid', 'test'):
 print("\nWriting predictions back to Neo4j …")
 predictions = [
     {'gds_id': int(gid), 'predicted': int(p)}
-    for gid, p in zip(gds_ids, pred.tolist())
+    for gid, p in zip(data.gds_node_id.tolist(), pred.tolist())
 ]
 
 write_query = """
@@ -388,28 +347,6 @@ driver.close()
 # PART 2 – Kùzu as a PyG-ready graph store (OGBN-arxiv)
 # =============================================================================
 #
-# In Part 1 we streamed the OGBN-arxiv graph out of Neo4j+GDS in one shot.
-# Neo4j is powerful but heavy: it runs as a server, needs a JVM heap, and is
-# overkill for training a single-machine model against a graph that fits on
-# a laptop's disk.
-#
-# Kùzu is an embedded columnar graph database. It runs in the same process
-# as our Python script, stores the graph in a single directory on disk, and
-# ships a Cypher engine plus a first-class PyTorch Geometric bridge. In
-# this section we ingest OGBN-arxiv into a Kùzu database, then use a
-# Cypher query to pull out a PyG Data object we can train against.
-#
-# Compared to Part 1 we exchange server infrastructure for embedded storage,
-# and we exchange full-graph streaming for query-level flexibility: any
-# subgraph expressible in Cypher can be materialised into a PyG Data object
-# on demand.
-#
-# Kùzu Inc. archived the project in October 2025 following an acquisition.
-# We pin kuzu==0.10.0 as the last release with a stable PyG integration
-# across every mainstream platform. The community fork LadybugDB
-# (github.com/LadybugDB/ladybug) continues active development and is a
-# drop-in API replacement for readers building long-term projects.
-
 print("\n" + "=" * 60)
 print("PART 2 – Kùzu as a PyG-ready graph store (OGBN-arxiv)")
 print("=" * 60)

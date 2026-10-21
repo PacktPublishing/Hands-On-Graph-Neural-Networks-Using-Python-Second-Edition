@@ -15,12 +15,13 @@ docker compose up -d
 ```
 
 Give it about 30 seconds on the first run: it boots and installs the Graph Data
-Science plugin. Confirm at http://localhost:7475 (user `neo4j`, password
+Science plugin. Confirm at http://localhost:17474 (user `neo4j`, password
 `password`).
 
-The container is published on the +1 ports — bolt on **7688**, browser on
-**7475** — so it does not clash with a Neo4j you may already be running
-locally. `run.py` defaults to `bolt://localhost:7688` to match.
+The container is published on ports away from the Neo4j defaults: Bolt on
+**17687** and the browser on **17474**. Local Neo4j instances, such as those
+started by Neo4j Desktop, often take 7687, 7688, and nearby ports.
+`run.py` defaults to `bolt://localhost:17687` to match.
 
 Kùzu, used in Part 2, is embedded. It ships as a Python wheel and needs no
 container or server.
