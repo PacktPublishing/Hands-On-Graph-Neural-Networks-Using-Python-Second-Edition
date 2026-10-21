@@ -50,7 +50,7 @@ on the middle bins, 21-25 atoms, and worse at both ends.
 
 GINE and GraphGPS differ in two ways at once, positional encodings and global
 attention, so the headline comparison cannot say which one matters.
-[figures/ablation.ipynb](figures/ablation.ipynb) separates them with a 2x2
+[ablation.ipynb](ablation.ipynb) separates them with a 2x2
 design at matched depth and width over several seeds, and produces
 `fig10_4_ablation.png`. It is written for Colab, since it trains four variants.
 
