@@ -1,8 +1,9 @@
 # Chapter 10 – Graph Transformers: Attention Beyond Local Neighborhoods
 
 A GINE baseline and a GraphGPS model on ZINC-subset, trained for 150 epochs
-each, so the chapter can ask what global attention and Laplacian positional
-encodings actually buy on molecular graphs.
+each, followed by an ablation that asks what global attention, Laplacian
+positional encodings, and the rest of the GraphGPS block actually contribute
+on molecular graphs.
 
 ## Setup
 
@@ -22,9 +23,9 @@ python run.py                        # trains GINE, then GraphGPS
 python figures/generate_figures.py   # regenerates figures
 ```
 
-`run.py` took about 26 minutes on the machine this was verified on, CPU only —
-the two models are trained one after the other, 150 epochs each. A GPU is not
-required but shortens this considerably.
+`run.py` took about 34 minutes on the machine this was verified on, CPU only:
+about 2.7 seconds per epoch for GINE and 10.8 for GraphGPS, 150 epochs each.
+A GPU is not required but shortens this considerably.
 
 ## What to expect
 
@@ -35,34 +36,49 @@ Test MAE on ZINC-subset, from the verified run:
 | GINE baseline | 0.2416 |
 | GraphGPS | 0.2025 |
 
-That is a gain of about 16%, not the order-of-magnitude difference the
-GraphGPS paper reports on other datasets — and the chapter treats that as the
-interesting result rather than an embarrassment. ZINC molecules average 23
-atoms, so six rounds of message passing already reach most of the graph, and
-there is little left for global attention to add. Exact numbers vary with seed
-and with the PyTorch/PyG version.
+That is a reduction of about 16%. Exact numbers vary with seed and with the
+PyTorch/PyG version; the run above was produced with PyTorch 2.5.1,
+PyTorch Geometric 2.8.0, and pandas 2.3.3.
 
-The stratified breakdown by molecule size, Figure 10.3, is where the two models
-differ most. The error is not monotonic in molecule size: both models do best
-on the middle bins, 21-25 atoms, and worse at both ends.
+The stratified breakdown by molecule size, Figure 10.3, shows that the error is
+not monotonic in molecule size: both models do best on the middle bins,
+21-25 atoms, and worse at both ends.
 
 ## The ablation behind Figure 10.4
 
-GINE and GraphGPS differ in two ways at once, positional encodings and global
-attention, so the headline comparison cannot say which one matters.
-[ablation.ipynb](ablation.ipynb) separates them with a 2x2
-design at matched depth and width over several seeds, and produces
-`fig10_4_ablation.png`. It is written for Colab, since it trains four variants.
+GINE and GraphGPS differ in several ways at once: global attention, positional
+encodings, and the rest of the GraphGPS block (residual connections,
+normalization, a feed-forward layer, dropout, more layers and channels).
+[ablation.ipynb](ablation.ipynb) separates them with six
+variants over three seeds, and its results feed `fig10_4_ablation.png`:
+
+| variant | parameters | test MAE (3 seeds) |
+|---|---|---|
+| GINE baseline (4 layers, 64 hidden) | 40,069 | 0.2551 ± 0.0286 |
+| local only, no PE | 349,447 | 0.1920 ± 0.0077 |
+| local only + PE | 350,311 | 0.1898 ± 0.0023 |
+| local only, widened | 570,604 | 0.1795 ± 0.0011 |
+| attention, no PE | 574,087 | 0.2210 ± 0.0062 |
+| attention + PE (full GraphGPS) | 574,951 | 0.1941 ± 0.0021 |
+
+The first row is the same GINE baseline as above, re-run over three seeds on
+different hardware, which is why it reads 0.2551 rather than 0.2416; the single
+run falls well inside the spread. The "local only" variants are the GraphGPS
+block with its attention branch removed. On ZINC-subset, the gain over GINE
+comes from the block design rather than from global attention, consistently
+with the ablation in the GraphGPS paper. The notebook is written for Colab and
+was run on an A100 GPU with PyTorch 2.11 and PyTorch Geometric 2.8.1; the full
+grid takes about one hour and forty minutes there.
 
 ## Figures
 
 4 figures, listed in [figures/INDEX.md](figures/INDEX.md). Regenerate them with
 the command above; they are drawn in grayscale, as printed.
 
-The stratified bars in Figure 10.3 are hard-coded near the top of the Figure
-10.3 block in `figures/generate_figures.py`. They match the verified run to four
-decimals; if you re-run the chapter, replace the `gine` and `gps` arrays with
-the stratified means it prints.
+The stratified bars in Figure 10.3 and the ablation rows in Figure 10.4 are
+hard-coded in `figures/generate_figures.py`. They match the verified runs to
+four decimals; if you re-run the chapter or the ablation, replace them with the
+values printed by `run.py` and `ablation.ipynb`.
 
 ## Requirements
 

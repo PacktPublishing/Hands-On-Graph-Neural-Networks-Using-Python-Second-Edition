@@ -233,22 +233,24 @@ save(fig, "fig10_3_mae_by_size.png")
 print("Figure 10.4 …")
 
 rows = [
-    ["Message passing only",              "125,383", "0.3018 ± 0.0160"],
-    ["Message passing + PE",              "126,247", "0.3032 ± 0.0089"],
-    ["Message passing only, widened",     "574,503", "0.3054 ± 0.0032"],
-    ["Attention, no PE",                  "574,087", "0.2140 ± 0.0086"],
-    ["Attention + PE (full GraphGPS)",    "574,951", "0.2064 ± 0.0105"],
+    ["GINE baseline (4 layers, 64 hidden)", "40,069",  "0.2551 ± 0.0286"],
+    ["Local only, no PE",                   "349,447", "0.1920 ± 0.0077"],
+    ["Local only + PE",                     "350,311", "0.1898 ± 0.0023"],
+    ["Local only, widened",                 "570,604", "0.1795 ± 0.0011"],
+    ["Attention, no PE",                    "574,087", "0.2210 ± 0.0062"],
+    ["Attention + PE (full GraphGPS)",      "574,951", "0.1941 ± 0.0021"],
 ]
 cols = ["Variant", "Parameters", "Test MAE"]
 cclr = [
     ['white', 'white', G6],
     ['white', 'white', G6],
     ['white', 'white', G6],
-    ['white', 'white', G5],
     ['white', 'white', G4],
+    ['white', 'white', G6],
+    ['white', 'white', G6],
 ]
 
-fig, ax = figure(aspect=0.40)
+fig, ax = figure(aspect=0.46)
 ax.axis('off')
 tbl = ax.table(cellText=rows, colLabels=cols, cellLoc='center',
                colWidths=[0.46, 0.26, 0.28], cellColours=cclr,
