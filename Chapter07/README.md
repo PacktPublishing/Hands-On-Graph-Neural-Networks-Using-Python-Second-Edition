@@ -25,9 +25,9 @@ Downloaded on first run, into this folder:
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.5.1
-torch-geometric>=2.8
-matplotlib>=3.10.8
-numpy>=2.3.5
-networkx>=3.6.1
+torch==2.5.1
+torch-geometric==2.8.0.post1
+matplotlib==3.10.8
+numpy==2.3.5
+networkx==3.6.1
 ```

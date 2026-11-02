@@ -79,13 +79,13 @@ GraphSAGE training. Part 2 uses the same model but is intentionally capped at
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.5.1
-torch-geometric>=2.8
-ogb>=1.3.6
-pandas>=2.3.3
-neo4j>=6.2
-graphdatascience>=1.22,<2.0
+torch==2.5.1
+torch-geometric==2.8.0.post1
+ogb==1.3.6
+pandas==2.3.3
+neo4j==6.2.0
+graphdatascience==1.22
 kuzu==0.10.0
-matplotlib>=3.10.8
-numpy>=2.3.5
+matplotlib==3.10.8
+numpy==2.3.5
 ```

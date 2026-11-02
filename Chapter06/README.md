@@ -28,12 +28,12 @@ Downloaded on first run, into this folder:
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.5.1
-torch-geometric>=2.8
-scikit-learn>=1.8
-matplotlib>=3.10.8
-pandas>=2.3.3
-numpy>=2.3.5
-scipy>=1.17.1
-certifi>=2026.5.20
+torch==2.5.1
+torch-geometric==2.8.0.post1
+scikit-learn==1.8.0
+matplotlib==3.10.8
+pandas==2.3.3
+numpy==2.3.5
+scipy==1.17.1
+certifi==2026.5.20
 ```

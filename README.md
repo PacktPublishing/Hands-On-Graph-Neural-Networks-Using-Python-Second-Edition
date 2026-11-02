@@ -54,7 +54,8 @@ pip install -r requirements.txt
 
 The root `requirements.txt` pins one set of versions that every chapter runs
 against, so you install once and work through the whole book. Each chapter
-also states its own minimum versions, should you prefer separate environments.
+also lists the subset it needs, at the same versions, should you prefer a
+separate environment per chapter.
 
 **On macOS**, run `/Applications/Python 3.11/Install Certificates.command`
 once. The python.org build ships without CA certificates, and Chapters 14 and

@@ -19,11 +19,11 @@ python figures/generate_figures.py
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.5.1
-torch-geometric>=2.8
-pandas>=2.3.3
-scikit-learn>=1.8
-numpy>=2.3.5
-matplotlib>=3.10.8
-certifi>=2026.5.20
+torch==2.5.1
+torch-geometric==2.8.0.post1
+pandas==2.3.3
+scikit-learn==1.8.0
+numpy==2.3.5
+matplotlib==3.10.8
+certifi==2026.5.20
 ```

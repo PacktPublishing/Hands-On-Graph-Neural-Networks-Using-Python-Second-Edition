@@ -2,14 +2,14 @@
 """Check that every chapter's requirements agree with the pinned root set.
 
 The root requirements.txt is the environment the book was verified against.
-Each chapter states the floor it was verified on, so a package is spelled the
-same way everywhere it appears. This reports:
+A chapter's requirements.txt can be installed on its own, into an environment
+of its own, so it pins the same versions rather than a floor: a floor would
+promise that the chapter still runs on whatever is newest years from now,
+which nobody has tried. This reports:
 
-  CONFLICT  a chapter asks for something the pinned version does not satisfy
-  DRIFT     two chapters state different versions of the same package
+  MISMATCH  a chapter states a version the root file does not pin
   MISSING   a chapter requires a package the root file does not pin
-  WARNING   a chapter pins an exact version, or needs a newer minor than the
-            rest of the book, which is worth a note in its README
+  WARNING   a chapter has run.py but no requirements.txt
 
     python tools/check_requirements.py
 """
@@ -20,7 +20,6 @@ from pathlib import Path
 
 try:
     from packaging.requirements import Requirement
-    from packaging.version import Version
 except ImportError:
     sys.exit("pip install packaging")
 
@@ -45,45 +44,19 @@ def parse(path):
     return out
 
 
-def pinned_version(req):
-    for spec in req.specifier:
-        if spec.operator in ("==", "==="):
-            return Version(spec.version.replace("+pt25", ""))
-    return None            # e.g. a git URL: no comparable version
-
-
 def main():
     root = parse(ROOT / "requirements.txt")
     problems = warnings = 0
-    stated = {}            # package -> {specifier as written: [chapters]}
 
     for path in sorted(ROOT.glob("Chapter[0-9][0-9]/requirements.txt")):
         chapter = path.parent.name
         for name, req in parse(path).items():
-            stated.setdefault(name, {}).setdefault(str(req), []).append(chapter)
             if name not in root:
                 print(f"MISSING   {chapter}: {req} is not pinned in requirements.txt")
                 problems += 1
-                continue
-            version = pinned_version(root[name])
-            if version is None:                    # git pin, cannot compare
-                continue
-            if not req.specifier.contains(version, prereleases=True):
-                print(f"CONFLICT  {chapter}: needs {req}, root pins {version}")
+            elif str(req) != str(root[name]):
+                print(f"MISMATCH  {chapter}: states {req}, root pins {root[name]}")
                 problems += 1
-                continue
-            for spec in req.specifier:
-                if spec.operator == "==":
-                    print(f"WARNING   {chapter}: pins {req} exactly — note it in "
-                          f"the chapter README")
-                    warnings += 1
-
-    for name, variants in sorted(stated.items()):
-        if len(variants) > 1:
-            print(f"DRIFT     {name} is stated {len(variants)} ways:")
-            for text, chapters in sorted(variants.items()):
-                print(f"            {text:<28} {', '.join(chapters)}")
-            problems += 1
 
     missing = [d.name for d in sorted(ROOT.glob("Chapter[0-9][0-9]"))
                if (d / "run.py").exists() and not (d / "requirements.txt").exists()]
@@ -91,7 +64,7 @@ def main():
         print(f"WARNING   {chapter}: has run.py but no requirements.txt")
         warnings += 1
 
-    print(f"\n{problems} conflitti, {warnings} avvisi")
+    print(f"\n{problems} problemi, {warnings} avvisi")
     return 1 if problems else 0
 
 
