@@ -74,9 +74,17 @@ FILLS = [G6, G5, G4]
 
 
 def apply():
-    """Set the rcParams every figure in the book starts from."""
+    """Set the rcParams every figure in the book starts from.
+
+    Switches to Agg only when nothing is there to draw on: a chapter whose
+    run.py also displays its figures inline is running under ipykernel, and
+    taking the backend away from it would leave the notebook with no output.
+    """
+    import sys
+
     import matplotlib
-    matplotlib.use('Agg')
+    if 'ipykernel' not in sys.modules:
+        matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
     plt.rcParams.update({

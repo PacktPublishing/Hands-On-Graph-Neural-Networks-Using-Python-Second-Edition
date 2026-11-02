@@ -13,10 +13,6 @@ import os
 import random
 import sys
 
-import matplotlib
-if "ipykernel" not in sys.modules:
-    matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import networkx as nx
 import numpy as np
@@ -33,17 +29,27 @@ from torch_geometric.datasets import KarateClub
 from torch_geometric.nn import Node2Vec
 from torch_geometric.utils import to_networkx
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', 'tools'))
+from bookstyle import (apply, figure, FONT, BG, DPI, INK, INK_SOFT,
+                       G3, G4, G5, G6)
+
+plt = apply()
+
 FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
 os.makedirs(FIG_DIR, exist_ok=True)
 
-FONT = "DejaVu Sans"
-G0, G2, G6 = "#111111", "#555555", "#DDDDDD"
-CLASS_A, CLASS_B = "#1A1A1A", "#A0A0A0"
+G0, G2 = INK, INK_SOFT
+# The two factions have to be told apart in a grayscale print, so they differ
+# by two steps of the ramp and both carry dark labels. A reversed white label
+# on a dark node closes up at this point size once the ink spreads.
+CLASS_A, CLASS_B = G4, G6
 
 
 def save(fig, name):
-    fig.savefig(os.path.join(FIG_DIR, name), dpi=200, bbox_inches="tight",
-                facecolor="white", edgecolor="none")
+    """Like bookstyle.save, but shows the figure inline before closing it."""
+    fig.savefig(os.path.join(FIG_DIR, name), dpi=DPI, facecolor=BG,
+                edgecolor="none")
     print(f"[saved figures/{name}]")
     if "ipykernel" in sys.modules:
         plt.show()
@@ -143,14 +149,14 @@ np.random.seed(0)
 G = nx.erdos_renyi_graph(10, 0.3, seed=1, directed=False)
 pos = nx.spring_layout(G, seed=0)
 
-fig, ax = plt.subplots(figsize=(6, 5))
+fig, ax = figure(aspect=0.78)
 ax.axis("off")
-nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G2, width=1.5, alpha=0.7)
-nx.draw_networkx_nodes(G, pos, ax=ax, node_size=700, node_color=G2,
-                       edgecolors="white", linewidths=1.5)
-nx.draw_networkx_labels(G, pos, ax=ax, font_size=12, font_color="white",
+nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G4, width=0.9)
+nx.draw_networkx_nodes(G, pos, ax=ax, node_size=320, node_color=G5,
+                       edgecolors=INK, linewidths=0.8)
+nx.draw_networkx_labels(G, pos, ax=ax, font_size=8.5, font_color=INK,
                         font_weight="bold", font_family=FONT)
-fig.tight_layout()
+ax.margins(0.09)
 save(fig, "fig3_5_random_graph.png")
 
 
@@ -187,21 +193,23 @@ G = to_networkx(data, to_undirected=True)
 pos = nx.spring_layout(G, seed=0)
 node_colors = [CLASS_A if l == 0 else CLASS_B for l in labels]
 
-fig, ax = plt.subplots(figsize=(8, 7))
+fig, ax = figure(aspect=0.84)
 ax.axis("off")
-nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G6, width=1.2, alpha=0.9)
-nx.draw_networkx_nodes(G, pos, ax=ax, node_size=600, node_color=node_colors,
-                       edgecolors="white", linewidths=1.5)
-for face, txt in ((0, "white"), (1, G0)):
-    nx.draw_networkx_labels(G, pos, ax=ax, font_size=9,
-                            labels={n: str(n) for n in G.nodes
-                                    if labels[n] == face},
-                            font_color=txt, font_weight="bold",
-                            font_family=FONT)
-ax.legend(handles=[mpatches.Patch(color=CLASS_A, label="Mr. Hi's faction"),
-                   mpatches.Patch(color=CLASS_B, label="Officer's faction")],
-          loc="lower right", fontsize=10, framealpha=0.9, edgecolor=G6)
-fig.tight_layout()
+# 32 and 33 are 0.25in apart once the layout is stretched to the column, so a
+# node wider than that runs its neighbour's label into its own.
+nx.draw_networkx_edges(G, pos, ax=ax, edge_color=G6, width=0.7)
+nx.draw_networkx_nodes(G, pos, ax=ax, node_size=200, node_color=node_colors,
+                       edgecolors=INK, linewidths=0.7)
+nx.draw_networkx_labels(G, pos, ax=ax, font_size=8, font_color=INK,
+                        labels={n: str(n) for n in G.nodes},
+                        font_weight="bold", font_family=FONT)
+# networkx fits the data exactly, which clips the outermost nodes in half.
+ax.margins(0.09)
+ax.legend(handles=[mpatches.Patch(facecolor=CLASS_A, edgecolor=G3,
+                                  label="Mr. Hi's faction"),
+                   mpatches.Patch(facecolor=CLASS_B, edgecolor=G3,
+                                  label="Officer's faction")],
+          loc="upper left", fontsize=8, framealpha=1.0, edgecolor=G6)
 save(fig, "fig3_6_karate_club.png")
 
 
@@ -283,23 +291,24 @@ tsne_proj = TSNE(n_components=2, init='pca', perplexity=10,
 umap_proj = umap.UMAP(n_components=2,
                       random_state=0).fit_transform(emb_np)
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+# Side by side, each panel is 2.75in and a node marker takes twice the share of
+# it that it took of the original 11in figure, so the numbers collide. Stacked,
+# each panel keeps the full column and the density is the one that worked.
+fig, axes = figure(aspect=1.02, nrows=2)
 for ax, proj, title in zip(axes, [tsne_proj, umap_proj], ["t-SNE", "UMAP"]):
     ax.axis("off")
-    ax.set_title(title, fontsize=13, fontweight="bold", color=G0, pad=10,
-                 fontfamily=FONT)
-    ax.scatter(proj[labels == 0, 0], proj[labels == 0, 1], s=140,
-               color=CLASS_A, edgecolors="white", linewidths=0.8,
+    ax.set_title(title, fontweight="bold", color=INK, pad=4, fontfamily=FONT)
+    ax.scatter(proj[labels == 0, 0], proj[labels == 0, 1], s=160,
+               color=CLASS_A, edgecolors=INK, linewidths=0.6,
                label="Mr. Hi", zorder=3)
-    ax.scatter(proj[labels == 1, 0], proj[labels == 1, 1], s=140,
-               color=CLASS_B, edgecolors="white", linewidths=0.8,
+    ax.scatter(proj[labels == 1, 0], proj[labels == 1, 1], s=160,
+               color=CLASS_B, edgecolors=INK, linewidths=0.6,
                label="Officer", zorder=3)
     for i, (x, y) in enumerate(proj):
-        ax.text(x, y, str(i), ha="center", va="center", fontsize=6,
-                color="white" if labels[i] == 0 else G0,
-                fontweight="bold", zorder=4)
-    ax.legend(fontsize=9, framealpha=0.9, edgecolor=G6, loc="best")
-fig.tight_layout()
+        ax.text(x, y, str(i), ha="center", va="center", fontsize=8,
+                color=INK, fontweight="bold", zorder=4, fontfamily=FONT)
+    ax.margins(0.10)
+    ax.legend(fontsize=8, framealpha=1.0, edgecolor=G6, loc="best")
 save(fig, "fig3_7_tsne_umap.png")
 
 
