@@ -6,6 +6,10 @@
 # README. When a commit touches one of those, the generated file is refreshed
 # and added to the same commit, so the two can never be committed out of step.
 #
+# A staged requirements.txt is also checked against the pinned root set before
+# anything is regenerated, because a floor that is too low never conflicts with
+# anything: without the check, one package can quietly end up stated two ways.
+#
 # READMEs are only *synced*, never regenerated: several chapters have a
 # hand-written README (Neo4j setup, expected results, caveats) and rewriting
 # those would throw that away. The sync touches the requirements list and the
@@ -26,11 +30,24 @@ readmes=$(echo "$staged" \
              -e 's#^Chapter\([0-9][0-9]\)/figures/.*\.png$#\1#p' \
     | sort -u)
 
-[ -z "$notebooks" ] && [ -z "$readmes" ] && exit 0
+reqs=$(echo "$staged" | sed -n -e 's#^requirements\.txt$#&#p' \
+                            -e 's#^Chapter[0-9][0-9]/requirements\.txt$#&#p')
+
+[ -z "$notebooks" ] && [ -z "$readmes" ] && [ -z "$reqs" ] && exit 0
 
 if ! command -v python3 >/dev/null 2>&1; then
     echo "pre-commit: python3 non trovato, file generati non aggiornati" >&2
     exit 1
+fi
+
+# Conflicts and drift refuse the commit; the warnings about the four
+# deliberately locked packages do not.
+if [ -n "$reqs" ]; then
+    if ! report=$(python3 tools/check_requirements.py 2>&1); then
+        printf '%s\n' "$report" >&2
+        echo "pre-commit: requirements incoerenti, commit annullato" >&2
+        exit 1
+    fi
 fi
 
 changed=""
