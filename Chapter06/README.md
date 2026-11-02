@@ -6,7 +6,6 @@
 cd Chapter06
 python run.py
 python figures/generate_figures.py
-python figures/generate_figures_norm_gray.py
 ```
 
 `run.py` took about 2 minutes on the machine this was verified on, CPU only.
@@ -15,7 +14,7 @@ python figures/generate_figures_norm_gray.py
 
 Downloaded on first run, into this folder:
 
-- Cora / CiteSeer / PubMed (Planetoid)
+- Cora (Planetoid)
 - Facebook Page-Page
 - Wikipedia Chameleon
 

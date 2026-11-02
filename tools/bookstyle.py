@@ -156,8 +156,12 @@ def contrast(fg, bg=BG):
 
 
 FIGSIZE = re.compile(r'figsize=\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*\)')
+# Only the text colour counts. Without the lookbehind this also matched the
+# tail of edgecolor= and facecolor=, flagging the border of a label's box as
+# though the words themselves had been set in it.
 PALE_TEXT = re.compile(
-    r'(?:ax|plt)\.(?:text|annotate)\([^)]*?color\s*=\s*(G[3-6])', re.S)
+    r'(?:ax|plt)\.(?:text|annotate)\([^)]*?(?<![a-z])color\s*=\s*(G[3-6])',
+    re.S)
 FONTSIZE = re.compile(r'(?:fontsize|font_size|fs)\s*=\s*(\d+(?:\.\d+)?)')
 USES_BOOKSTYLE = re.compile(r'^\s*(?:from|import)\s+bookstyle', re.M)
 
