@@ -291,23 +291,26 @@ tsne_proj = TSNE(n_components=2, init='pca', perplexity=10,
 umap_proj = umap.UMAP(n_components=2,
                       random_state=0).fit_transform(emb_np)
 
-# Side by side, each panel is 2.75in and a node marker takes twice the share of
-# it that it took of the original 11in figure, so the numbers collide. Stacked,
-# each panel keeps the full column and the density is the one that worked.
-fig, axes = figure(aspect=1.02, nrows=2)
+# The two panels stay side by side, as the caption says. They are 2.75in each,
+# where a number inside every marker cannot be set above 6.5 pt and collides
+# with its neighbour's; the chapter's own code does not draw those numbers
+# either. Only node 8 is named, because the text singles it out, and it is
+# annotated beside its marker rather than inside it.
+fig, axes = figure(aspect=0.46, ncols=2)
 for ax, proj, title in zip(axes, [tsne_proj, umap_proj], ["t-SNE", "UMAP"]):
     ax.axis("off")
     ax.set_title(title, fontweight="bold", color=INK, pad=4, fontfamily=FONT)
-    ax.scatter(proj[labels == 0, 0], proj[labels == 0, 1], s=160,
+    ax.scatter(proj[labels == 0, 0], proj[labels == 0, 1], s=100,
                color=CLASS_A, edgecolors=INK, linewidths=0.6,
                label="Mr. Hi", zorder=3)
-    ax.scatter(proj[labels == 1, 0], proj[labels == 1, 1], s=160,
+    ax.scatter(proj[labels == 1, 0], proj[labels == 1, 1], s=100,
                color=CLASS_B, edgecolors=INK, linewidths=0.6,
                label="Officer", zorder=3)
-    for i, (x, y) in enumerate(proj):
-        ax.text(x, y, str(i), ha="center", va="center", fontsize=8,
-                color=INK, fontweight="bold", zorder=4, fontfamily=FONT)
-    ax.margins(0.10)
+    ax.annotate("node 8", xy=proj[8], xytext=(12, 10),
+                textcoords="offset points", fontsize=8, color=INK,
+                fontfamily=FONT, zorder=5,
+                arrowprops=dict(arrowstyle="-", color=INK_SOFT, lw=0.7))
+    ax.margins(0.16)
     ax.legend(fontsize=8, framealpha=1.0, edgecolor=G6, loc="best")
 save(fig, "fig3_7_tsne_umap.png")
 
