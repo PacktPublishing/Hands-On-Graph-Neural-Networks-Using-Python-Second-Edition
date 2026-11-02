@@ -1,8 +1,9 @@
-torch>=2.2
-torch-cluster>=1.6
-torch-geometric>=2.5
-scikit-learn>=1.4
-networkx>=3.0
-matplotlib>=3.8
-pandas>=2.0
-numpy>=1.26
+torch>=2.5.1
+torch-cluster>=1.6.3
+torch-geometric>=2.8
+scikit-learn>=1.8
+networkx>=3.6.1
+matplotlib>=3.10.8
+pandas>=2.3.3
+numpy>=2.3.5
+gensim>=4.4

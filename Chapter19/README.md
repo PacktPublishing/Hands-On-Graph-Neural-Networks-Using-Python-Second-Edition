@@ -88,13 +88,13 @@ written by `run.py` and 19.4 by `ablation.py`.
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.2
+torch>=2.5.1
 torch-geometric>=2.8
-transformers>=4.44
-accelerate>=0.30
-peft>=0.12
-sentencepiece>=0.2
-huggingface_hub>=0.23
-numpy>=1.26
-matplotlib>=3.8
+transformers>=5.15.1
+accelerate>=1.14
+peft>=0.21.2
+sentencepiece>=0.2.2
+huggingface-hub>=1.28,<2.0
+numpy>=2.3.5
+matplotlib>=3.10.8
 ```

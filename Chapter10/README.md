@@ -85,9 +85,9 @@ values printed by `run.py` and `ablation.ipynb`.
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.2
-torch-geometric>=2.5
-pandas>=2.0
-matplotlib>=3.8
-numpy>=1.26
+torch>=2.5.1
+torch-geometric>=2.8
+pandas>=2.3.3
+matplotlib>=3.10.8
+numpy>=2.3.5
 ```

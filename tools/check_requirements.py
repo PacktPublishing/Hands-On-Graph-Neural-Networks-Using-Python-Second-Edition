@@ -2,9 +2,11 @@
 """Check that every chapter's requirements agree with the pinned root set.
 
 The root requirements.txt is the environment the book was verified against.
-Each chapter states the minimum it needs. This reports:
+Each chapter states the floor it was verified on, so a package is spelled the
+same way everywhere it appears. This reports:
 
   CONFLICT  a chapter asks for something the pinned version does not satisfy
+  DRIFT     two chapters state different versions of the same package
   MISSING   a chapter requires a package the root file does not pin
   WARNING   a chapter pins an exact version, or needs a newer minor than the
             rest of the book, which is worth a note in its README
@@ -53,10 +55,12 @@ def pinned_version(req):
 def main():
     root = parse(ROOT / "requirements.txt")
     problems = warnings = 0
+    stated = {}            # package -> {specifier as written: [chapters]}
 
     for path in sorted(ROOT.glob("Chapter[0-9][0-9]/requirements.txt")):
         chapter = path.parent.name
         for name, req in parse(path).items():
+            stated.setdefault(name, {}).setdefault(str(req), []).append(chapter)
             if name not in root:
                 print(f"MISSING   {chapter}: {req} is not pinned in requirements.txt")
                 problems += 1
@@ -73,6 +77,13 @@ def main():
                     print(f"WARNING   {chapter}: pins {req} exactly — note it in "
                           f"the chapter README")
                     warnings += 1
+
+    for name, variants in sorted(stated.items()):
+        if len(variants) > 1:
+            print(f"DRIFT     {name} is stated {len(variants)} ways:")
+            for text, chapters in sorted(variants.items()):
+                print(f"            {text:<28} {', '.join(chapters)}")
+            problems += 1
 
     missing = [d.name for d in sorted(ROOT.glob("Chapter[0-9][0-9]"))
                if (d / "run.py").exists() and not (d / "requirements.txt").exists()]

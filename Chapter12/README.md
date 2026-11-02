@@ -25,11 +25,11 @@ Downloaded on first run, into this folder:
 Covered by the pinned environment in the repository root. This chapter needs:
 
 ```
-torch>=2.2
-torch-geometric>=2.5
-scikit-learn>=1.4
-scipy>=1.11
-numpy>=1.26
-matplotlib>=3.8
-networkx>=3.0
+torch>=2.5.1
+torch-geometric>=2.8
+scikit-learn>=1.8
+scipy>=1.17.1
+numpy>=2.3.5
+matplotlib>=3.10.8
+networkx>=3.6.1
 ```

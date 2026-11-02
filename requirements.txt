@@ -1,7 +1,8 @@
 # Verified environment for the whole book — Python 3.11
 #
 # Every chapter runs against this single set of versions; the per-chapter
-# requirements.txt files state the minimum each chapter needs, and
+# requirements.txt files state the floor each chapter was verified on, so a
+# package reads the same way in every chapter that uses it, and
 # tools/check_requirements.py checks they agree with the pins below.
 #
 #   python3.11 -m venv .venv

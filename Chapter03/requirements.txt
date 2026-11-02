@@ -1,7 +1,7 @@
-torch>=2.2
-torch-geometric>=2.5
-scikit-learn>=1.4
-umap-learn>=0.5
-networkx>=3.0
-matplotlib>=3.8
-numpy>=1.26
+torch>=2.5.1
+torch-geometric>=2.8
+scikit-learn>=1.8
+umap-learn>=0.5.12
+networkx>=3.6.1
+matplotlib>=3.10.8
+numpy>=2.3.5

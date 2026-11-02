@@ -1,8 +1,8 @@
-torch>=2.2
-torch-geometric>=2.5
+torch>=2.5.1
+torch-geometric>=2.8
 torch-geometric-temporal==0.56.2
-pandas>=2.0
-numpy>=1.26
-matplotlib>=3.8
-networkx>=3.0
-certifi
+pandas>=2.3.3
+numpy>=2.3.5
+matplotlib>=3.10.8
+networkx>=3.6.1
+certifi>=2026.5.20
