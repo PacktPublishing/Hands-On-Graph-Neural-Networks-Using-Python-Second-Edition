@@ -18,7 +18,6 @@
 # Core
 torch==2.5.1
 torch-geometric==2.8.0.post1
-torch-cluster==1.6.3            # biased random walks for Node2Vec (Chapter 04)
 pyg-lib==0.4.0+pt25             # fast neighbour sampling (Chapter 08)
 torch-scatter==2.1.2            # required by torch-geometric-temporal
 torch-sparse==0.6.18            # required by torch-geometric-temporal
@@ -33,8 +32,7 @@ networkx==3.6.1
 matplotlib==3.10.8
 certifi==2026.5.20
 
-# Embeddings and dimensionality reduction (Chapters 03, 04)
-gensim==4.4.0
+# Dimensionality reduction (Chapter 03)
 umap-learn==0.5.12
 
 # Graph databases (Chapter 09)

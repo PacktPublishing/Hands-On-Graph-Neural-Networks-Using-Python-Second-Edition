@@ -1,208 +1,252 @@
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, Rectangle
-import networkx as nx
-import random, os
+"""
+Chapter 4 - conceptual figures (Figures 4.1 to 4.3).
+Figures 4.4 and 4.5 come from the data and are saved by run.py.
 
-random.seed(0)
+Usage:
+    python figures/generate_figures.py
+"""
+
+import os
+import sys
+
+import networkx as nx
+import numpy as np
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', 'tools'))
+from bookstyle import (apply, figure, save as save_fig, FONT, INK, INK_SOFT,
+                       G3, G4, G5, G6)
+
+plt = apply()
+
 np.random.seed(0)
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 os.makedirs(OUT, exist_ok=True)
 
-FONT  = "DejaVu Sans"
-BG    = "white"
+# Roles, mapped onto the three fills that carry dark type. The chapter ranks
+# its candidates by the distance d(t,x), so they take an ordered ramp: the
+# nearer the previous node, the darker the fill. White type on those fills is
+# not an option at 8.5 pt - the press closes up the counters of reversed type.
+FOCUS = G4       # the node the walk is standing on
+MIDWAY = G5      # d(t,x) = 1
+DISTANT = G6     # d(t,x) = 2, and the node the walk came from (d(t,x) = 0)
+EDGE = G5        # edges that only carry the shape of the graph
+EDGE_HL = INK    # edges the panel is about
 
-# Shared grayscale palette (same values as chapters 06+).
-G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
-G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
 
-# Ordered gray ramps for categories (same values as Chapter05's grayscale figures).
-GRAY7 = ["#1A1A1A", "#404040", "#666666", "#8C8C8C", "#ABABAB", "#C8C8C8", "#E0E0E0"]
-GRAY4 = ["#1A1A1A", "#606060", "#A0A0A0", "#D0D0D0"]
-
-# Semantic roles. The node2vec categories are ranked by the distance d(t,x),
-# so they take an ordered ramp: d=0 darkest → d=2 lightest.
-FOCUS  = GRAY7[0]   # source node A / current node v  (was orange)
-RETURN = GRAY7[1]   # d(t,x)=0, alpha = 1/p          (was red)
-NEAR   = GRAY7[2]   # d(t,x)=1, alpha = 1            (was blue)
-FAR    = GRAY7[3]   # d(t,x)=2, alpha = 1/q          (was green)
-PREV   = GRAY7[4]   # previous node t                (was mid gray)
-
-INK     = G0   # titles and label text
-MUTED   = G2   # secondary text and the walk-direction arrow
-EDGE_HL = G2   # emphasised edges
-FILL_BG = G5   # unhighlighted node fill
-EDGE_BG = G6   # background edges and legend frames
-
-# Karate club factions: two well-separated tones, as in the grayscale variant.
-KARATE_DARK  = GRAY7[1]   # Mr. Hi's faction  (was blue)
-KARATE_LIGHT = GRAY4[2]   # Officer's faction (was red)
-
-def save(fig, name, dpi=200):
-    fig.savefig(f"{OUT}/{name}", dpi=dpi, bbox_inches='tight',
-                facecolor=BG, edgecolor='none')
-    plt.close(fig)
+def save(fig, name):
+    save_fig(fig, os.path.join(OUT, name))
     print(f"  saved {name}")
 
-# ── Fig 4.1: BFS vs DFS neighbourhood ────────────────────────────────────────
-print("Figure 4.1 …")
-nodes = ['A','B','C','D','E','F','G']
-edges = [('A','B'),('A','C'),('B','D'),('B','E'),('C','F'),('F','G')]
-G41 = nx.Graph(); G41.add_nodes_from(nodes); G41.add_edges_from(edges)
-pos41 = {'A':(0,0),'B':(-0.8,-0.9),'C':(0.8,-0.9),
-          'D':(-1.4,-1.8),'E':(-0.2,-1.8),'F':(1.4,-1.8),'G':(1.8,-2.7)}
 
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-fig.patch.set_facecolor(BG)
+def nodes(ax, pos, fills, size=260, ring=0.7):
+    """Draw the markers with ax.scatter, which keeps them round.
 
-for ax, title, highlight in zip(
-    axes,
-    ["BFS neighbourhood\nN(A) = {B, C}", "DFS neighbourhood\nN(A) = {B, D, E}"],
-    [['A','B','C'], ['A','B','D','E']]
-):
-    ax.set_facecolor(BG); ax.axis('off')
-    ax.set_title(title, fontsize=12, fontweight='bold', color=INK,
-                 pad=10, fontfamily=FONT)
-    nc = [FOCUS if n=='A' else (NEAR if n in highlight else FILL_BG) for n in G41.nodes()]
-    ns = [900 if n=='A' else (700 if n in highlight else 500) for n in G41.nodes()]
-    ec = [EDGE_HL if (u in highlight and v in highlight) else EDGE_BG for u,v in G41.edges()]
-    ew = [2.5 if (u in highlight and v in highlight) else 1.0 for u,v in G41.edges()]
-    nx.draw_networkx_edges(G41, pos41, ax=ax, edge_color=ec, width=ew)
-    nx.draw_networkx_nodes(G41, pos41, ax=ax, node_color=nc, node_size=ns,
-                           edgecolors='white', linewidths=1.5)
-    nx.draw_networkx_labels(G41, pos41, ax=ax, font_size=11, font_color='white',
-                            font_weight='bold', font_family=FONT)
-    ax.legend(handles=[
-        mpatches.Patch(color=FOCUS,   label='Source node A'),
-        mpatches.Patch(color=NEAR,    label='Neighbourhood N(A)'),
-        mpatches.Patch(color=FILL_BG, label='Other nodes'),
-    ], loc='lower right', fontsize=9, framealpha=0.9, edgecolor=EDGE_BG)
+    networkx would do the same, but a circle added in data coordinates turns
+    into an ellipse here: these panels have their axes switched off, so the two
+    data ranges are stretched to the box by different factors.
+    """
+    for name, (x, y) in pos.items():
+        ax.scatter([x], [y], s=size, facecolor=fills[name], edgecolors=INK,
+                   linewidths=ring[name] if isinstance(ring, dict) else ring,
+                   zorder=3)
 
-fig.tight_layout()
+
+def label(ax, pos, texts, fontsize=8.5, weight='bold'):
+    for name, (x, y) in pos.items():
+        ax.text(x, y, texts[name], ha='center', va='center',
+                fontsize=fontsize, color=INK, fontweight=weight,
+                fontfamily=FONT, zorder=4)
+
+
+def arrow(ax, start, end, color=INK_SOFT, lw=0.9, scale=9):
+    ax.annotate("", xy=end, xytext=start,
+                arrowprops=dict(arrowstyle="-|>", color=color, lw=lw,
+                                mutation_scale=scale, shrinkA=7, shrinkB=7),
+                zorder=2)
+
+
+def tag(ax, x, y, text, edgecolor=G3):
+    """A probability or an alpha, boxed so the edge below does not cross it."""
+    ax.text(x, y, text, ha='center', va='center', fontsize=8, color=INK,
+            fontweight='bold', fontfamily=FONT, zorder=5,
+            bbox=dict(facecolor='white', edgecolor=edgecolor,
+                      boxstyle='round,pad=0.18', linewidth=0.7))
+
+
+# =============================================================================
+# Figure 4.1 - BFS versus DFS neighborhood
+# =============================================================================
+print("Figure 4.1 ...")
+
+edges41 = [('A', 'B'), ('A', 'C'), ('B', 'D'), ('B', 'E'), ('C', 'F'),
+           ('F', 'G')]
+G41 = nx.Graph()
+G41.add_nodes_from(['A', 'B', 'C', 'D', 'E', 'F', 'G'])
+G41.add_edges_from(edges41)
+pos41 = {'A': (0, 0), 'B': (-0.8, -0.9), 'C': (0.8, -0.9), 'D': (-1.4, -1.8),
+         'E': (-0.2, -1.8), 'F': (1.4, -1.8), 'G': (1.8, -2.7)}
+
+# Two panels at column width are 2.75in each. The legend is shared instead of
+# repeated in both, which buys back the room the taller panels need.
+fig, axes = figure(aspect=0.56, ncols=2)
+
+for ax, title, hilite in zip(
+        axes,
+        ["BFS neighborhood\nN(A) = {B, C}",
+         "DFS neighborhood\nN(A) = {B, D, E}"],
+        [['A', 'B', 'C'], ['A', 'B', 'D', 'E']]):
+    ax.axis('off')
+    ax.set_title(title, fontweight='bold', color=INK, pad=5, fontfamily=FONT)
+    inside = [(u, v) for u, v in G41.edges if u in hilite and v in hilite]
+    outside = [e for e in G41.edges if e not in inside]
+    nx.draw_networkx_edges(G41, pos41, ax=ax, edgelist=outside,
+                           edge_color=EDGE, width=0.8)
+    nx.draw_networkx_edges(G41, pos41, ax=ax, edgelist=inside,
+                           edge_color=EDGE_HL, width=1.6)
+    fills = {n: (FOCUS if n == 'A' else
+                 MIDWAY if n in hilite else DISTANT) for n in G41.nodes}
+    nodes(ax, pos41, fills,
+          ring={n: (1.4 if n == 'A' else 0.7) for n in G41.nodes})
+    label(ax, pos41, {n: n for n in G41.nodes})
+    ax.margins(0.10)
+
+fig.legend(handles=[
+    plt.matplotlib.patches.Patch(facecolor=FOCUS, edgecolor=G3,
+                                 label='Source node A'),
+    plt.matplotlib.patches.Patch(facecolor=MIDWAY, edgecolor=G3,
+                                 label='Neighborhood N(A)'),
+    plt.matplotlib.patches.Patch(facecolor=DISTANT, edgecolor=G3,
+                                 label='Other nodes'),
+], loc='outside lower center', ncols=3, fontsize=8, framealpha=1.0,
+    edgecolor=G6, handlelength=1.4, columnspacing=1.2)
+
 save(fig, "fig4_1_neighborhood.png")
 
-# ── Fig 4.2: p/q transition probability setup ─────────────────────────────────
-print("Figure 4.2 …")
-fig, ax = plt.subplots(figsize=(9, 5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-ax.set_xlim(-0.5, 4.5); ax.set_ylim(-0.5, 3.0)
 
-node_pos = {'t':(0.8,1.5),'v':(2.2,1.5),'x1':(3.6,2.6),'x2':(3.6,1.5),'x3':(3.6,0.4)}
-node_labels = {'t':'t\n(previous)','v':'v\n(current)',
-               'x1':'x₁\n(d=0)','x2':'x₂\n(d=1)','x3':'x₃\n(d=2)'}
-node_colors = {'t':PREV,'v':FOCUS,'x1':RETURN,'x2':NEAR,'x3':FAR}
+# =============================================================================
+# Figure 4.2 - the transition probabilities out of v
+# =============================================================================
+print("Figure 4.2 ...")
 
-for u, e in [('t','v'),('v','x1'),('v','x2'),('v','x3'),('t','x2')]:
-    x1c,y1c = node_pos[u]; x2c,y2c = node_pos[e]
-    lc = EDGE_HL if 'v' in (u,e) else EDGE_BG
-    ax.plot([x1c,x2c],[y1c,y2c], color=lc, lw=1.8, zorder=1, alpha=0.7)
+# As in Figure 2 of the Node2Vec paper: the walk has just moved from t to v.
+# Going back to t itself is d(t, x) = 0 (alpha = 1/p); x1 is a neighbor of
+# both v and t, d = 1 (alpha = 1); x2 and x3 are not neighbors of t, d = 2
+# (alpha = 1/q). The same roles and fills as Figure 4.3.
+pos42 = {'t': (0.70, 1.40), 'v': (2.00, 1.40), 'x1': (3.35, 2.45),
+         'x2': (3.35, 1.40), 'x3': (3.35, 0.35)}
+fills42 = {'t': DISTANT, 'v': FOCUS, 'x1': MIDWAY, 'x2': DISTANT,
+           'x3': DISTANT}
+rings42 = {'t': 0.7, 'v': 1.6, 'x1': 0.7, 'x2': 0.7, 'x3': 0.7}
+texts42 = {'t': 't', 'v': 'v', 'x1': 'x$_1$', 'x2': 'x$_2$', 'x3': 'x$_3$'}
 
-for name,(x,y) in node_pos.items():
-    ax.add_patch(plt.Circle((x,y), 0.28, color=node_colors[name], zorder=3))
-    lines = node_labels[name].split('\n')
-    ax.text(x,y+0.07, lines[0], ha='center', va='center', fontsize=11,
-            color='white', fontweight='bold', fontfamily=FONT, zorder=4)
-    ax.text(x,y-0.12, lines[1], ha='center', va='center', fontsize=8,
-            color='white', fontfamily=FONT, zorder=4)
+fig, ax = figure(aspect=0.56)
+ax.axis('off')
+ax.set_xlim(-0.75, 5.45)
+ax.set_ylim(0.00, 2.90)
 
-for xname,(lbl,clr) in [('x1',('1/p',RETURN)),('x2',('1',NEAR)),('x3',('1/q',FAR))]:
-    xp,yp = node_pos[xname]; vp = node_pos['v']
-    mx,my = (xp+vp[0])/2, (yp+vp[1])/2
-    oy = 0.18 if yp>vp[1] else (-0.18 if yp<vp[1] else 0)
-    ax.text(mx+0.18, my+oy, f'α = {lbl}', ha='center', va='center',
-            fontsize=10, color=INK, fontweight='bold', fontfamily=FONT,
-            bbox=dict(facecolor='white', edgecolor=clr,
-                      boxstyle='round,pad=0.2', linewidth=1.2))
+for a, b in [('t', 'v'), ('v', 'x1'), ('v', 'x2'), ('v', 'x3')]:
+    ax.plot([pos42[a][0], pos42[b][0]], [pos42[a][1], pos42[b][1]],
+            color=EDGE_HL, lw=1.0, zorder=1)
 
-ax.annotate("", xy=node_pos['v'],
-            xytext=(node_pos['t'][0]+0.3, node_pos['t'][1]),
-            arrowprops=dict(arrowstyle="-|>", color=MUTED, lw=2.0, mutation_scale=18))
-ax.text(1.5,1.78,"walk direction", ha='center', fontsize=9,
-        color=MUTED, fontstyle='italic', fontfamily=FONT)
-ax.set_title("Node2Vec transition probabilities from current node v\n"
-             "based on distance to previous node t\n"
-             "d(t,x): shortest-path distance between previous node t and candidate x",
-             fontsize=11, fontweight='bold', color=INK, pad=10, fontfamily=FONT)
-ax.legend(handles=[
-    mpatches.Patch(color=RETURN, label='d(t,x)=0  →  α = 1/p  (return)'),
-    mpatches.Patch(color=NEAR,   label='d(t,x)=1  →  α = 1    (same distance)'),
-    mpatches.Patch(color=FAR,    label='d(t,x)=2  →  α = 1/q  (explore)'),
-], loc='lower left', fontsize=9, framealpha=0.95, edgecolor=EDGE_BG)
-fig.tight_layout()
+# The t-x1 edge is what puts x1 at distance 1 from t. Bowed upward so that it
+# clears both the alpha tag on the v-x1 edge and the walk-direction note.
+ax.add_patch(plt.matplotlib.patches.FancyArrowPatch(
+    pos42['t'], pos42['x1'], arrowstyle='-', color=EDGE, lw=1.0,
+    connectionstyle='arc3,rad=-0.34', shrinkA=9, shrinkB=9, zorder=1))
+
+nodes(ax, pos42, fills42, size=300, ring=rings42)
+label(ax, pos42, texts42, fontsize=9)
+
+# The walk arrives at v from t; without the arrow nothing in the picture says
+# which of the two is the previous node.
+arrow(ax, pos42['t'], pos42['v'], color=INK, lw=1.2, scale=10)
+ax.text(1.35, 1.52, "walk direction", ha='center', fontsize=8,
+        color=INK_SOFT, fontstyle='italic', fontfamily=FONT)
+
+# Returning to t: a second arrow from v back to t, bowed below the first.
+ax.add_patch(plt.matplotlib.patches.FancyArrowPatch(
+    pos42['v'], pos42['t'], arrowstyle='-|>', color=INK, lw=1.0,
+    mutation_scale=9, connectionstyle='arc3,rad=-0.45', shrinkA=9, shrinkB=9,
+    zorder=2))
+tag(ax, 1.35, 1.10, r'$\alpha = 1/p$')
+
+ax.text(0.70, 0.90, "previous", ha='center', fontsize=8, color=INK_SOFT,
+        fontfamily=FONT)
+ax.text(2.00, 0.90, "current", ha='center', fontsize=8, color=INK_SOFT,
+        fontfamily=FONT)
+ax.text(0.42, 1.40, "d(t, x) = 0\nreturn", ha='right', va='center',
+        fontsize=8, color=INK, fontfamily=FONT, linespacing=1.3)
+
+for key, alpha, note in [
+        ('x1', r'$\alpha = 1$', 'd(t, x) = 1   neighbor of t'),
+        ('x2', r'$\alpha = 1/q$', 'd(t, x) = 2   explore'),
+        ('x3', r'$\alpha = 1/q$', 'd(t, x) = 2   explore')]:
+    xv, yv = pos42['v']
+    xn, yn = pos42[key]
+    offset = 0.20 if yn > yv else (-0.20 if yn < yv else -0.20)
+    tag(ax, (xv + xn) / 2 + 0.10, (yv + yn) / 2 + offset, alpha)
+    ax.text(xn + 0.26, yn, note, ha='left', va='center', fontsize=8,
+            color=INK, fontfamily=FONT)
+
 save(fig, "fig4_2_transition_probs.png")
 
-# ── Fig 4.3: Concrete probability example ─────────────────────────────────────
-print("Figure 4.3 …")
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-fig.patch.set_facecolor(BG)
 
-G43 = nx.Graph()
-G43.add_edges_from([('t','v'),('v','A'),('v','B'),('v','C'),('t','B')])
-pos43 = {'t':(0,0),'v':(2,0),'A':(4,1.2),'B':(4,0),'C':(4,-1.2)}
+# =============================================================================
+# Figure 4.3 - the same probabilities, worked out
+# =============================================================================
+print("Figure 4.3 ...")
+
+pos43 = {'t': (0.00, 0.00), 'v': (1.20, 0.00), 'A': (2.40, 0.90),
+         'B': (2.40, 0.00), 'C': (2.40, -0.90)}
+edges43 = [('t', 'v'), ('v', 'A'), ('v', 'B'), ('v', 'C')]
+
+fig, axes = figure(aspect=0.50, ncols=2)
 
 for ax, (p, q, title) in zip(axes, [
-    (1,   1,   'p=1, q=1  (DeepWalk)'),
-    (0.5, 2.0, 'p=0.5, q=2  (prefer return, stay local)'),
-]):
-    ax.set_facecolor(BG); ax.axis('off')
-    ax.set_title(title, fontsize=11, fontweight='bold', color=INK,
-                 pad=8, fontfamily=FONT)
-    raw   = {'t':1/p, 'A':1/q, 'B':1.0, 'C':1/q}
+        (1.0, 1.0, 'p = 1, q = 1\n(DeepWalk)'),
+        (0.5, 2.0, 'p = 0.5, q = 2\n(returns, stays local)')]):
+    ax.axis('off')
+    ax.set_title(title, fontweight='bold', color=INK, pad=5, fontfamily=FONT)
+    ax.set_xlim(-0.45, 3.45)
+    ax.set_ylim(-1.55, 1.35)
+
+    raw = {'t': 1 / p, 'A': 1 / q, 'B': 1.0, 'C': 1 / q}
     total = sum(raw.values())
-    probs = {k:v/total for k,v in raw.items()}
+    probs = {k: v / total for k, v in raw.items()}
 
-    for u, e in G43.edges():
-        x1c,y1c=pos43[u]; x2c,y2c=pos43[e]
-        ax.plot([x1c,x2c],[y1c,y2c], color=EDGE_BG, lw=1.5, zorder=1)
+    for a, b in edges43:
+        ax.plot([pos43[a][0], pos43[b][0]], [pos43[a][1], pos43[b][1]],
+                color=EDGE, lw=0.9, zorder=1)
 
-    tgt_colors = {'t':RETURN,'A':FAR,'B':NEAR,'C':FAR}
-    for nbr in ['t','A','B','C']:
-        xv,yv=pos43['v']; xn,yn=pos43[nbr]
-        clr = tgt_colors[nbr]
-        ax.annotate("", xy=(xn,yn), xytext=(xv,yv),
-                    arrowprops=dict(arrowstyle="-|>", color=clr,
-                                   lw=1.5+probs[nbr]*4, mutation_scale=14, alpha=0.85))
-        mx,my=(xv+xn)/2,(yv+yn)/2
-        oy = 0.22 if yn>yv else (-0.22 if yn<yv else 0.22)
-        ax.text(mx+0.15, my+oy, f'{probs[nbr]:.3g}', ha='center', va='center',
-                fontsize=10, color=INK, fontweight='bold', fontfamily=FONT,
-                bbox=dict(facecolor='white', edgecolor=clr,
-                          boxstyle='round,pad=0.15', linewidth=1))
+    # t-B is collinear with v and would vanish under the two arrows drawn over
+    # it. It is the edge that puts B at distance 1 from t, which is what gives
+    # it alpha = 1, so it is bowed clear of them.
+    ax.add_patch(plt.matplotlib.patches.FancyArrowPatch(
+        pos43['t'], pos43['B'], arrowstyle='-', color=EDGE, lw=0.9,
+        connectionstyle='arc3,rad=0.30', shrinkA=8, shrinkB=8, zorder=1))
 
-    ncolors={'t':PREV,'v':FOCUS,'A':FAR,'B':NEAR,'C':FAR}
-    for n,(x,y) in pos43.items():
-        ax.add_patch(plt.Circle((x,y),0.25,color=ncolors[n],zorder=3))
-        ax.text(x,y, n, ha='center', va='center', fontsize=12,
-                color='white', fontweight='bold', fontfamily=FONT, zorder=4)
+    for nbr in ['t', 'A', 'B', 'C']:
+        arrow(ax, pos43['v'], pos43[nbr], color=INK,
+              lw=0.7 + probs[nbr] * 3.0, scale=9)
+        xv, yv = pos43['v']
+        xn, yn = pos43[nbr]
+        offset = 0.26 if yn > yv else (-0.26 if yn < yv else 0.24)
+        tag(ax, (xv + xn) / 2 + 0.05, (yv + yn) / 2 + offset,
+            f'{probs[nbr]:.3g}')
 
-    ax.set_xlim(-0.7,5.2); ax.set_ylim(-2.0,2.0)
-    ax.text(0,-1.7,'previous (t)',ha='center',fontsize=8,color=MUTED,fontfamily=FONT)
-    ax.text(2,-1.7,'current (v)', ha='center',fontsize=8,color=FOCUS,fontfamily=FONT)
+    fills = {'t': DISTANT, 'v': FOCUS, 'A': DISTANT, 'B': MIDWAY,
+             'C': DISTANT}
+    nodes(ax, pos43, fills, size=280,
+          ring={n: (1.6 if n == 'v' else 0.7) for n in pos43})
+    label(ax, pos43, {n: n for n in pos43}, fontsize=9)
 
-fig.tight_layout()
+    ax.text(0.00, -1.32, 'previous (t)', ha='center', fontsize=8,
+            color=INK_SOFT, fontfamily=FONT)
+    ax.text(1.20, -1.32, 'current (v)', ha='center', fontsize=8,
+            color=INK_SOFT, fontfamily=FONT)
+
 save(fig, "fig4_3_prob_example.png")
 
-# ── Fig 4.4: Zachary's Karate Club ────────────────────────────────────────────
-print("Figure 4.4 …")
-G44  = nx.karate_club_graph()
-pos44 = nx.spring_layout(G44, seed=0)
-labels44 = [1 if G44.nodes[n]['club']=='Officer' else 0 for n in G44.nodes]
-colors44  = [KARATE_DARK if l==0 else KARATE_LIGHT for l in labels44]
-fig, ax = plt.subplots(figsize=(8,7))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-nx.draw_networkx_edges(G44, pos44, ax=ax, edge_color=EDGE_BG, width=1.2, alpha=0.9)
-nx.draw_networkx_nodes(G44, pos44, ax=ax, node_size=600, node_color=colors44,
-                       edgecolors='white', linewidths=1.5)
-nx.draw_networkx_labels(G44, pos44, ax=ax, font_size=9, font_color='white',
-                        font_weight='bold', font_family=FONT)
-ax.legend(handles=[mpatches.Patch(color=KARATE_DARK,  label="Mr. Hi's faction"),
-                   mpatches.Patch(color=KARATE_LIGHT, label="Officer's faction")],
-          loc='lower right', fontsize=10, framealpha=0.9, edgecolor=EDGE_BG)
-fig.tight_layout()
-save(fig, "fig4_4_karate_club.png")
-
-print("Figs 4.1-4.4 done.")
+print("Figures 4.1-4.3 done.")
