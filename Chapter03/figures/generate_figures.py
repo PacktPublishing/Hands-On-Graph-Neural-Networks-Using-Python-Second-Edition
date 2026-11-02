@@ -1,10 +1,16 @@
+"""
+Chapter 3 - conceptual figures (Figures 3.1 to 3.4).
+Figures 3.5, 3.6 and 3.7 come from the data and are saved by run.py.
+
+Usage:
+    python figures/generate_figures.py
+"""
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import matplotlib.patheffects as pe
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.patches import FancyBboxPatch
 import networkx as nx
 import random, os
 
@@ -20,12 +26,9 @@ BG     = "white"
 
 # Shared gray ramp used across the book's figures, darkest to lightest. The
 # drawing code below always goes through the role names, never through G0..G6
-# directly: the figure sections reuse G5/G6/G7 as graph variables.
+# directly.
 G0 = "#111111"; G1 = "#333333"; G2 = "#555555"
 G3 = "#777777"; G4 = "#999999"; G5 = "#BBBBBB"; G6 = "#DDDDDD"
-
-# Ordered ramp for categorical series that must stay apart in print.
-GRAY4 = ["#1A1A1A", "#606060", "#A0A0A0", "#D0D0D0"]
 
 # Roles: dark for the marks the reader should look at first, mid for the
 # regular ones, light for structure that only has to stay in the background.
@@ -35,11 +38,6 @@ PRIMARY   = G2   # ordinary filled boxes and nodes, white text on top
 SECONDARY = G4   # light fills that carry dark text
 MUTED     = G2   # arrows, graph edges and caption text
 FAINT     = G6   # grid ticks, faint edges, legend frames
-
-# Two-class encoding (karate-club factions). Two steps apart on GRAY4 so the
-# fills differ by ~134 luminance levels and survive a black-and-white print.
-CLASS_A = GRAY4[0]   # Mr. Hi's faction — takes white labels
-CLASS_B = GRAY4[2]   # Officer's faction — light enough to need dark labels
 
 def save(fig, name, dpi=200):
     fig.savefig(f"{OUT}/{name}", dpi=dpi, bbox_inches='tight',
@@ -78,8 +76,7 @@ ctx_words = ["w(t-2)", "w(t-1)", "w(t+1)", "w(t+2)"]
 ys = [0.82, 0.66, 0.34, 0.18]
 for lbl, y in zip(ctx_words, ys):
     box(ax, 0.18, y, 0.28, 0.10, lbl, PRIMARY, fontsize=9)
-# sum layer
-box(ax, 0.50, 0.50, 0.18, 0.12, "Sum", ACCENT, fontsize=9)
+box(ax, 0.50, 0.50, 0.18, 0.12, "Average", ACCENT, fontsize=9)
 for y in ys:
     arrow(ax, 0.33, y, 0.41, 0.50)
 # output
@@ -247,135 +244,5 @@ fig.suptitle("Sentences and graphs share the same co-occurrence intuition",
              fontsize=11, color=MUTED, fontstyle='italic', fontfamily=FONT, y=0.02)
 fig.tight_layout()
 save(fig, "fig3_4_sentences_graphs.png")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Figure 3.5 – Random graph (Erdos-Renyi)
-# ─────────────────────────────────────────────────────────────────────────────
-print("Figure 3.5 …")
-random.seed(0); np.random.seed(0)
-G5 = nx.erdos_renyi_graph(10, 0.3, seed=1, directed=False)
-pos5 = nx.spring_layout(G5, seed=0)
-
-fig, ax = plt.subplots(figsize=(6, 5))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-
-nx.draw_networkx_edges(G5, pos5, ax=ax, edge_color=MUTED, width=1.5, alpha=0.7)
-nx.draw_networkx_nodes(G5, pos5, ax=ax, node_size=700,
-                       node_color=PRIMARY, edgecolors="white", linewidths=1.5)
-nx.draw_networkx_labels(G5, pos5, ax=ax, font_size=12,
-                        font_color="white", font_weight='bold', font_family=FONT)
-fig.tight_layout()
-save(fig, "fig3_5_random_graph.png")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Figure 3.6 – Zachary's Karate Club
-# ─────────────────────────────────────────────────────────────────────────────
-print("Figure 3.6 …")
-G6  = nx.karate_club_graph()
-pos6 = nx.spring_layout(G6, seed=0)
-labels6 = [1 if G6.nodes[n]['club'] == 'Officer' else 0 for n in G6.nodes]
-colors6  = [CLASS_A if l == 0 else CLASS_B for l in labels6]
-
-fig, ax = plt.subplots(figsize=(8, 7))
-fig.patch.set_facecolor(BG); ax.set_facecolor(BG); ax.axis('off')
-
-nx.draw_networkx_edges(G6, pos6, ax=ax, edge_color=FAINT, width=1.2, alpha=0.9)
-nx.draw_networkx_nodes(G6, pos6, ax=ax, node_size=600,
-                       node_color=colors6, edgecolors="white", linewidths=1.5)
-# The two factions sit at opposite ends of the ramp, so the node ids are drawn
-# in two passes: white on the dark faction, near-black on the light one.
-for face, txt in ((0, "white"), (1, INK)):
-    nx.draw_networkx_labels(G6, pos6, ax=ax, font_size=9,
-                            labels={n: str(n) for n, l in zip(G6.nodes, labels6)
-                                    if l == face},
-                            font_color=txt, font_weight='bold', font_family=FONT)
-
-patch0 = mpatches.Patch(color=CLASS_A, label="Mr. Hi's faction")
-patch1 = mpatches.Patch(color=CLASS_B,  label="Officer's faction")
-ax.legend(handles=[patch0, patch1], loc='lower right',
-          fontsize=10, framealpha=0.9, edgecolor=FAINT)
-fig.tight_layout()
-save(fig, "fig3_6_karate_club.png")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Figure 3.7 – t-SNE + UMAP of DeepWalk embeddings
-# ─────────────────────────────────────────────────────────────────────────────
-print("Figure 3.7 — running DeepWalk embeddings …")
-from gensim.models.word2vec import Word2Vec
-from sklearn.manifold import TSNE
-import umap as umap_lib
-
-random.seed(0); np.random.seed(0)
-
-G7     = nx.karate_club_graph()
-labels7 = np.array([1 if G7.nodes[n]['club'] == 'Officer' else 0 for n in G7.nodes])
-
-def random_walk(G, start, length):
-    walk = [str(start)]
-    for _ in range(length):
-        nbrs = list(G.neighbors(start))
-        if not nbrs: break
-        start = np.random.choice(nbrs)
-        walk.append(str(start))
-    return walk
-
-walks = []
-for node in G7.nodes:
-    for _ in range(80):
-        walks.append(random_walk(G7, node, 10))
-
-model7 = Word2Vec(
-    sentences   = walks,
-    vector_size = 64,
-    window      = 5,
-    min_count   = 0,
-    sg          = 1,
-    hs          = 0,
-    negative    = 5,
-    # gensim only honours `seed` with a single worker: with more threads the
-    # order in which examples reach the model varies, so the embeddings — and
-    # this figure — change from run to run.
-    workers     = 1,
-    seed        = 0,
-    epochs      = 30
-)
-
-nodes_wv = np.array([model7.wv[str(i)] for i in range(len(G7.nodes))])
-
-tsne_proj = TSNE(n_components=2, init='pca',
-                 learning_rate='auto', random_state=0,
-                 perplexity=10).fit_transform(nodes_wv)
-
-umap_proj = umap_lib.UMAP(n_components=2, random_state=0,
-                           n_neighbors=8, min_dist=0.3).fit_transform(nodes_wv)
-
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-fig.patch.set_facecolor(BG)
-
-for ax, proj, title in zip(axes,
-                             [tsne_proj, umap_proj],
-                             ["t-SNE", "UMAP"]):
-    ax.set_facecolor(BG); ax.axis('off')
-    ax.set_title(title, fontsize=13, fontweight='bold', color=INK,
-                 pad=10, fontfamily=FONT)
-    sc = ax.scatter(proj[labels7 == 0, 0], proj[labels7 == 0, 1],
-                    s=140, color=CLASS_A, edgecolors="white",
-                    linewidths=0.8, label="Mr. Hi", zorder=3)
-    sc = ax.scatter(proj[labels7 == 1, 0], proj[labels7 == 1, 1],
-                    s=140, color=CLASS_B, edgecolors="white",
-                    linewidths=0.8, label="Officer", zorder=3)
-    for i, (x, y) in enumerate(proj):
-        # same trick as figure 3.6: the id follows the marker it sits on
-        ax.text(x, y, str(i), ha='center', va='center', fontsize=6,
-                color="white" if labels7[i] == 0 else INK,
-                fontweight='bold', zorder=4)
-    ax.legend(fontsize=9, framealpha=0.9, edgecolor=FAINT,
-              loc='best', markerscale=0.9)
-
-fig.suptitle("DeepWalk node embeddings – Zachary's Karate Club",
-             fontsize=11, color=MUTED, fontstyle='italic',
-             fontfamily=FONT, y=0.02)
-fig.tight_layout()
-save(fig, "fig3_7_tsne_umap.png")
 
 print("\nAll figures saved to", OUT)

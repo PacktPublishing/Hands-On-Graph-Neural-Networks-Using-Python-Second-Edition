@@ -21,6 +21,7 @@ Covered by the pinned environment in the repository root. This chapter needs:
 ```
 torch==2.5.1
 torch-geometric==2.8.0.post1
+pyg-lib==0.4.0+pt25
 scikit-learn==1.8.0
 umap-learn==0.5.12
 networkx==3.6.1
