@@ -290,36 +290,6 @@ print(f'G-Retriever only:   {g_only}')
 print(f'LoRA baseline only: {b_only}')
 print(f'Both wrong:         {neither}')
 
-print('\nErrors by true label:')
-for s in SYSTEMS:
-    for label in ('support', 'counter'):
-        wrong = sum(1 for r in records
-                    if r['label'] == label and not r[s].startswith(label[:4]))
-        n_label = sum(1 for r in records if r['label'] == label)
-        print(f'  {s:<15} {label:<8}: {wrong} of {n_label} wrong')
-
-print('\nFirst three samples where only G-Retriever is correct:')
-shown = 0
-for r, g_ok, b_ok in zip(records, g, b):
-    if g_ok and not b_ok and shown < 3:
-        print(f"\n[{r['index']}] Belief:   {r['belief']}")
-        print(f"     Argument: {r['argument']}")
-        print(f"     Triples:  {r['triples']}")
-        print(f"     Expected: {r['label']} | G-Retriever: {r['gretriever']} "
-              f"| LoRA baseline: {r['lora']}")
-        shown += 1
-
-print('\nFirst three samples where only the LoRA baseline is correct:')
-shown = 0
-for r, g_ok, b_ok in zip(records, g, b):
-    if b_ok and not g_ok and shown < 3:
-        print(f"\n[{r['index']}] Belief:   {r['belief']}")
-        print(f"     Argument: {r['argument']}")
-        print(f"     Triples:  {r['triples']}")
-        print(f"     Expected: {r['label']} | G-Retriever: {r['gretriever']} "
-              f"| LoRA baseline: {r['lora']}")
-        shown += 1
-
 with open('./checkpoints/comparison.json', 'w') as f:
     json.dump({'results': results, 'records': records}, f, indent=2)
 
